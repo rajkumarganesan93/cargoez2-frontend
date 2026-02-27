@@ -1,8 +1,8 @@
 import { lazy } from "react";
 
-const BooksList = lazy(() => import("./pages/BooksList"));
-const BookDetail = lazy(() => import("./pages/BookDetail"));
-const BookForm = lazy(() => import("./pages/BookForm"));
+const BooksList = lazy(() => import("./presentation/pages/BooksList"));
+const BookDetail = lazy(() => import("./presentation/pages/BookDetail"));
+const BookForm = lazy(() => import("./presentation/pages/BookForm"));
 
 export const booksRoutes = [
   { path: "books", element: BooksList, label: "Books" },

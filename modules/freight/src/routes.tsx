@@ -1,8 +1,8 @@
 import { lazy } from "react";
 
-const FreightList = lazy(() => import("./pages/FreightList"));
-const FreightDetail = lazy(() => import("./pages/FreightDetail"));
-const FreightForm = lazy(() => import("./pages/FreightForm"));
+const FreightList = lazy(() => import("./presentation/pages/FreightList"));
+const FreightDetail = lazy(() => import("./presentation/pages/FreightDetail"));
+const FreightForm = lazy(() => import("./presentation/pages/FreightForm"));
 
 export const freightRoutes = [
   { path: "freight", element: FreightList, label: "Freight" },

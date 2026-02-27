@@ -1,8 +1,8 @@
 import { lazy } from "react";
 
-const ContactsList = lazy(() => import("./pages/ContactsList"));
-const ContactDetail = lazy(() => import("./pages/ContactDetail"));
-const ContactForm = lazy(() => import("./pages/ContactForm"));
+const ContactsList = lazy(() => import("./presentation/pages/ContactsList"));
+const ContactDetail = lazy(() => import("./presentation/pages/ContactDetail"));
+const ContactForm = lazy(() => import("./presentation/pages/ContactForm"));
 
 export const contactsRoutes = [
   { path: "contacts", element: ContactsList, label: "Contacts" },

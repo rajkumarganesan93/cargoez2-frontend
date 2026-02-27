@@ -86,7 +86,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
     }
 
     const baseInput =
-      "rounded-md transition-all duration-200 outline-none font-[family-name:var(--theme-font-family)] text-text-primary disabled:opacity-50 disabled:cursor-not-allowed";
+      "rounded-md transition-all duration-200 outline-none font-[family-name:var(--font-family-base)] text-text-primary disabled:opacity-50 disabled:cursor-not-allowed";
 
     const variantClasses = (() => {
       switch (variant) {
@@ -119,7 +119,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
         {label && (
           <label
             htmlFor={id}
-            className="font-semibold text-sm text-text-primary disabled:text-text-disabled mb-1 font-[family-name:var(--theme-font-family)]"
+            className="font-semibold text-sm text-text-primary disabled:text-text-disabled mb-1 font-[family-name:var(--font-family-base)]"
           >
             {label}
           </label>
@@ -143,7 +143,7 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
         {(helperText || errorMessage) && (
           <span
             id={`${id}-helper-text`}
-            className={`text-xs mt-1 font-[family-name:var(--theme-font-family)] ${
+            className={`text-xs mt-1 font-[family-name:var(--font-family-base)] ${
               errorMessage ? "text-error" : "text-text-secondary"
             }`}
           >

@@ -1,8 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { AdminLayout } from "./layouts/AdminLayout";
-import AdminDashboard from "./pages/AdminDashboard";
-import UserManagement from "./pages/UserManagement";
-import SystemSettings from "./pages/SystemSettings";
+import { AdminLayout } from "./presentation/layouts/AdminLayout";
+import AdminDashboard from "./presentation/pages/AdminDashboard";
+import UserManagement from "./presentation/pages/UserManagement";
+import SystemSettings from "./presentation/pages/SystemSettings";
 
 export default function App() {
   return (

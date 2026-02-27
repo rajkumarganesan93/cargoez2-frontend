@@ -19,69 +19,69 @@ function getTheme(theme: ThemeType) {
 function buildCssVars(themeObj: typeof LightTheme): Record<string, string> {
   const p = themeObj.palette;
   return {
-    "--theme-primary": p.primary.main,
-    "--theme-primary-dark": p.primary.dark,
-    "--theme-primary-light": p.primary.light,
-    "--theme-primary-contrast": p.primary.contrastText,
-    "--theme-primary-disabled": p.primary.disabled,
+    "--color-primary": p.primary.main,
+    "--color-primary-dark": p.primary.dark,
+    "--color-primary-light": p.primary.light,
+    "--color-primary-contrast": p.primary.contrastText,
+    "--color-primary-disabled": p.primary.disabled,
 
-    "--theme-secondary": p.secondary.main,
-    "--theme-secondary-dark": p.secondary.dark,
-    "--theme-secondary-light": p.secondary.light,
-    "--theme-secondary-contrast": p.secondary.contrastText,
-    "--theme-secondary-disabled": p.secondary.disabled,
+    "--color-secondary": p.secondary.main,
+    "--color-secondary-dark": p.secondary.dark,
+    "--color-secondary-light": p.secondary.light,
+    "--color-secondary-contrast": p.secondary.contrastText,
+    "--color-secondary-disabled": p.secondary.disabled,
 
-    "--theme-success": p.success.main,
-    "--theme-success-dark": p.success.dark,
-    "--theme-success-light": p.success.light,
-    "--theme-success-contrast": p.success.contrastText,
-    "--theme-success-disabled": p.success.disabled,
+    "--color-success": p.success.main,
+    "--color-success-dark": p.success.dark,
+    "--color-success-light": p.success.light,
+    "--color-success-contrast": p.success.contrastText,
+    "--color-success-disabled": p.success.disabled,
 
-    "--theme-warning": p.warning.main,
-    "--theme-warning-dark": p.warning.dark,
-    "--theme-warning-light": p.warning.light,
-    "--theme-warning-contrast": p.warning.contrastText,
-    "--theme-warning-disabled": p.warning.disabled,
+    "--color-warning": p.warning.main,
+    "--color-warning-dark": p.warning.dark,
+    "--color-warning-light": p.warning.light,
+    "--color-warning-contrast": p.warning.contrastText,
+    "--color-warning-disabled": p.warning.disabled,
 
-    "--theme-error": p.error.main,
-    "--theme-error-dark": p.error.dark,
-    "--theme-error-light": p.error.light,
-    "--theme-error-contrast": p.error.contrastText,
-    "--theme-error-disabled": p.error.disabled,
+    "--color-error": p.error.main,
+    "--color-error-dark": p.error.dark,
+    "--color-error-light": p.error.light,
+    "--color-error-contrast": p.error.contrastText,
+    "--color-error-disabled": p.error.disabled,
 
-    "--theme-info": p.info.main,
-    "--theme-info-dark": p.info.dark,
-    "--theme-info-light": p.info.light,
-    "--theme-info-contrast": p.info.contrastText,
-    "--theme-info-disabled": p.info.disabled,
+    "--color-info": p.info.main,
+    "--color-info-dark": p.info.dark,
+    "--color-info-light": p.info.light,
+    "--color-info-contrast": p.info.contrastText,
+    "--color-info-disabled": p.info.disabled,
 
-    "--theme-bg-default": p.background.default,
-    "--theme-bg-paper": p.background.paper,
+    "--color-bg-default": p.background.default,
+    "--color-bg-paper": p.background.paper,
 
-    "--theme-text-primary": p.text.primary,
-    "--theme-text-secondary": p.text.secondary,
-    "--theme-text-disabled": p.text.disabled,
+    "--color-text-primary": p.text.primary,
+    "--color-text-secondary": p.text.secondary,
+    "--color-text-disabled": p.text.disabled,
 
-    "--theme-divider": p.divider,
+    "--color-divider": p.divider,
 
-    "--theme-action-hover": p.action.hover,
-    "--theme-action-focus": p.action.focus,
-    "--theme-action-disabled": p.action.disabled,
+    "--color-action-hover": p.action.hover,
+    "--color-action-focus": p.action.focus,
+    "--color-action-disabled": p.action.disabled,
 
-    "--theme-grey-100": p.grey[100],
-    "--theme-grey-200": p.grey[200],
-    "--theme-grey-300": p.grey[300],
-    "--theme-grey-400": p.grey[400],
-    "--theme-grey-500": p.grey[500],
-    "--theme-grey-600": p.grey[600],
-    "--theme-grey-700": p.grey[700],
-    "--theme-grey-800": p.grey[800],
-    "--theme-grey-900": p.grey[900],
+    "--color-grey-100": p.grey[100],
+    "--color-grey-200": p.grey[200],
+    "--color-grey-300": p.grey[300],
+    "--color-grey-400": p.grey[400],
+    "--color-grey-500": p.grey[500],
+    "--color-grey-600": p.grey[600],
+    "--color-grey-700": p.grey[700],
+    "--color-grey-800": p.grey[800],
+    "--color-grey-900": p.grey[900],
 
-    "--theme-shadow-light": themeObj.shadows.light,
-    "--theme-shadow-dark": themeObj.shadows.dark,
+    "--shadow-light": themeObj.shadows.light,
+    "--shadow-dark": themeObj.shadows.dark,
 
-    "--theme-font-family": themeObj.typography.fontFamily,
+    "--font-family-base": themeObj.typography.fontFamily,
   };
 }
 
@@ -99,7 +99,7 @@ export function ThemeProvider({
     <ThemeContext.Provider value={themeObj}>
       <div
         style={cssVars as React.CSSProperties}
-        className="min-h-screen bg-bg-default text-text-primary p-4 font-[family-name:var(--theme-font-family)]"
+        className="min-h-screen bg-bg-default text-text-primary p-4 font-[family-name:var(--font-family-base)]"
       >
         {children}
       </div>

@@ -5,6 +5,7 @@ node_modules
 dist
 dist-ssr
 types
+*.tsbuildinfo
 
 # Logs
 logs
@@ -19,6 +20,7 @@ lerna-debug.log*
 *.local
 .env
 .env.*
+!.env.example
 
 # NPM auth (contains tokens)
 .npmrc

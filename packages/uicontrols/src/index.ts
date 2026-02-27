@@ -10,3 +10,6 @@ export { useTheme } from "./utils/themeContext";
 export type { Theme } from "./utils/themeContext";
 export { default as LightTheme } from "./themes/lightTheme";
 export { default as DarkTheme } from "./themes/darkTheme";
+export { Toast } from "./components/Toast/Toast";
+export type { ToastItem, ToastType } from "./components/Toast/Toast";
+export { ToastProvider, useToast } from "./components/Toast/ToastProvider";
