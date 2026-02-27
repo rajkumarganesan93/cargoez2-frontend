@@ -1,0 +1,17 @@
+{
+  "name": "cargoez-frontend",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "modules/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:cargoez": "npm run dev -w apps/cargoez",
+    "dev:admin": "npm run dev -w apps/admin",
+    "build:all": "npm run build --ws --if-present",
+    "test:all": "npm run test --ws --if-present",
+    "lint:all": "npm run lint --ws --if-present",
+    "storybook": "npm run storybook -w packages/uicontrols"
+  }
+}

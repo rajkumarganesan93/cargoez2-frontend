@@ -1,0 +1,98 @@
+const LightTheme = {
+  name: "Light Theme",
+  palette: {
+    mode: "light",
+    primary: {
+      main: "#0d3c61",
+      dark: "#0d3c61",
+      light: "#1363a1",
+      contrastText: "#ffffff",
+      contrastTextAlt: "#FFD300",
+      disabled: "#e0e0e0",
+    },
+    secondary: {
+      main: "#e1f7fd",
+      dark: "#0d3c61",
+      light: "#a3adc4",
+      contrastText: "#000000",
+      disabled: "#f0f0f0",
+    },
+    success: {
+      main: "#2e7d32",
+      dark: "#1b5e20",
+      light: "#81c784",
+      contrastText: "#ffffff",
+      disabled: "#c8e6c9",
+    },
+    warning: {
+      main: "#ed6c02",
+      dark: "#e65100",
+      light: "#ffb74d",
+      contrastText: "#000000",
+      disabled: "#ffe0b2",
+    },
+    error: {
+      main: "#D32F2F",
+      dark: "#B71C1C",
+      light: "#E57373",
+      contrastText: "#ffffff",
+      disabled: "#ffcdd2",
+    },
+    info: {
+      main: "#01579b",
+      dark: "#01579b",
+      light: "#81d4fa",
+      contrastText: "#ffffff",
+      disabled: "#b3e5fc",
+    },
+    background: {
+      default: "#ffffff",
+      paper: "#f5f5f5",
+    },
+    text: {
+      primary: "#000000",
+      secondary: "#555555",
+      disabled: "#999999",
+    },
+    divider: "#000000",
+    transparent: "#ffffff00",
+    action: {
+      hover: "#e6f2fa",
+      focus: "#cce6f5",
+      disabled: "#f0f0f0",
+    },
+    grey: {
+      100: "#f5f5f5",
+      200: "#eeeeee",
+      300: "#e0e0e0",
+      400: "#bdbdbd",
+      500: "#9e9e9e",
+      600: "#757575",
+      700: "#616161",
+      800: "#424242",
+      900: "#212121",
+    },
+  },
+  typography: {
+    fontFamily: "Montserrat, Arial, sans-serif",
+    fontSizeSmall: "12px",
+    fontSizeMedium: "14px",
+    fontSizeLarge: "16px",
+    button: {
+      fontFamily: "Montserrat, Arial, sans-serif",
+      fontWeight: 500,
+      fontSize: "14px",
+      lineHeight: 1.5,
+      letterSpacing: "0.02857em",
+      textTransform: "none",
+    },
+  },
+  shape: { borderRadius: "4px" },
+  spacing: { sm: "8px 16px", md: "10px 20px" },
+  shadows: {
+    light: "0px 1px 3px rgba(0,0,0,0.12)",
+    dark: "0px 1px 3px rgba(0,0,0,0.24)",
+  },
+};
+
+export default LightTheme;

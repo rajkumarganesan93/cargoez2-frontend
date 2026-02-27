@@ -1,0 +1,10 @@
+# Ignore everything except dist (already controlled by "files" in package.json)
+src/
+.storybook/
+storybook-static/
+node_modules/
+tests/
+coverage/
+.vscode/
+*.log
+*.tmp

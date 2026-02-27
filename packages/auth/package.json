@@ -1,0 +1,26 @@
+{
+  "name": "@rajkumarganesan93/auth",
+  "version": "0.0.1",
+  "type": "module",
+  "private": false,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "keycloak-js": "^26.1.0"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rajkumarganesan93/cargoez2-frontend.git",
+    "directory": "packages/auth"
+  }
+}
