@@ -1,13 +1,12 @@
-export const ADMIN_ENDPOINTS = {
-  USERS: {
-    LIST: "/admin/users",
-    DETAIL: (id: string) => `/admin/users/${id}`,
-    CREATE: "/admin/users",
-    UPDATE: (id: string) => `/admin/users/${id}`,
-    DISABLE: (id: string) => `/admin/users/${id}/disable`,
-  },
-  SETTINGS: {
-    GET: "/admin/settings",
-    UPDATE: "/admin/settings",
-  },
+export const USER_ENDPOINTS = {
+  LIST: "/users",
+  DETAIL: (id: string) => `/users/${id}`,
+  CREATE: "/users",
+  UPDATE: (id: string) => `/users/${id}`,
+  DELETE: (id: string) => `/users/${id}`,
+} as const;
+
+export const SETTINGS_ENDPOINTS = {
+  GET: "/admin/settings",
+  UPDATE: "/admin/settings",
 } as const;

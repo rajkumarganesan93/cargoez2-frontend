@@ -72,6 +72,8 @@ FRONTEND/
 - **Node.js** >= 18.x
 - **npm** >= 9.x (uses npm workspaces)
 - **Git**
+- **Keycloak** >= 26.x (for authentication — required by the Admin Panel)
+- **CargoEz Backend** running (user-service on port 3001, API Gateway on port 4000)
 
 ## Getting Started
 
@@ -162,12 +164,14 @@ The main web application that serves as the **shell** for all micro-frontend mod
 
 ### Admin Panel (`apps/admin`)
 
-Standalone administration application with its own Clean Architecture structure.
+Standalone administration application with its own Clean Architecture structure. **Fully integrated with the real backend** — connects to the user-service (port 3001) with Keycloak PKCE authentication and Socket.IO real-time data sync.
 
 **Key features:**
-- User management (CRUD, disable)
-- System settings (API Gateway, Keycloak configuration)
-- Admin dashboard with system stats
+- **Keycloak PKCE authentication** — login required, JWT tokens on all API calls
+- **User management** — full CRUD with paginated list, inline create/edit forms, soft-delete with confirmation
+- **Real-time sync** — live/offline indicator, auto-refresh when another user modifies data via Socket.IO
+- **System settings** — API Gateway and Keycloak configuration display
+- **Admin dashboard** — system stats overview
 
 ## Micro-Frontend Modules
 
@@ -282,34 +286,71 @@ Applications must include `@source` directives in their `index.css` to scan modu
 
 Both applications use `.env` files (not committed; `.env.example` is provided):
 
-| Variable | Description | Default |
-|---|---|---|
-| `VITE_API_BASE_URL` | Backend API gateway URL | `http://localhost:4000` |
-| `VITE_KEYCLOAK_URL` | Keycloak server URL | `http://localhost:8080` |
-| `VITE_KEYCLOAK_REALM` | Keycloak realm name | `cargoez` |
-| `VITE_KEYCLOAK_CLIENT_ID` | Keycloak PKCE client ID | `cargoez-web` |
+| Variable | Description | Default | Used by |
+|---|---|---|---|
+| `VITE_API_BASE_URL` | Backend API gateway URL | `http://localhost:4000` | Both apps |
+| `VITE_USER_SERVICE_URL` | User service direct URL | `http://localhost:3001` | Admin only |
+| `VITE_KEYCLOAK_URL` | Keycloak server URL | `http://localhost:8080` | Admin only |
+| `VITE_KEYCLOAK_REALM` | Keycloak realm name | `cargoez` | Admin only |
+| `VITE_KEYCLOAK_CLIENT_ID` | Keycloak PKCE client ID | `cargoez-web` | Admin only |
 
 ## Backend Integration
 
 This frontend connects to the [CargoEz Backend](https://github.com/rajkumarganesan93/cargoez2-backend) microservices:
 
-- **API Gateway** — Port 4000 (entry point for all frontend API calls)
-- **User Service** — Port 3001
-- **Keycloak** — Port 8080 (realm: `cargoez`, PKCE client: `cargoez-web`)
+| Service | Port | Purpose |
+|---|---|---|
+| **API Gateway** | 4000 | Entry point for module API calls (contacts, freight, books) |
+| **User Service** | 3001 | User CRUD — Admin Panel connects directly |
+| **Keycloak** | 8080 | Authentication (realm: `cargoez`, PKCE client: `cargoez-web`) |
 
-All APIs return a consistent response format:
+### Authentication
+
+The **Admin Panel** uses Keycloak PKCE authentication via the `@rajkumarganesan93/auth` package. On login, a JWT token is obtained and automatically attached to all API calls via the `configureClient` function. The token is also passed to `RealtimeProvider` for authenticated Socket.IO connections.
+
+**Keycloak client setup (required):** The `cargoez-web` client in Keycloak must have these redirect URIs configured:
+- `http://localhost:5173/*` (CargoEz app)
+- `http://localhost:5174/*` (Admin Panel)
+
+**Test users** (realm: `cargoez`):
+
+| Username | Password | Roles | Access |
+|---|---|---|---|
+| `admin` | `admin123` | admin, user | Full CRUD |
+| `manager` | `manager123` | manager, user | Read + Update |
+| `testuser` | `test123` | user | Read only |
+
+### API Response Format
+
+All APIs return a consistent JSON structure:
 
 ```json
 {
   "success": true,
-  "messageCode": "CONTACT_CREATED",
-  "message": "Contact created successfully",
+  "messageCode": "CREATED",
+  "message": "User created successfully",
   "data": { ... },
   "timestamp": "2026-02-27T10:00:00.000Z"
 }
 ```
 
+Paginated list responses:
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [...],
+    "meta": { "total": 50, "page": 1, "limit": 20, "totalPages": 3 }
+  }
+}
+```
+
 The `uifunctions` API client includes interceptors that extract backend messages for display via the Toast notification system. Success and error messages always come from the backend, not hardcoded in the frontend.
+
+### Real-Time Data Sync
+
+The Admin Panel uses Socket.IO to receive real-time updates when data is modified by another user. The user-service emits `entity.created`, `entity.updated`, and `entity.deleted` events. The frontend auto-refreshes affected lists and shows Toast notifications. See [DEVELOPMENT.md](DEVELOPMENT.md) for integration details.
 
 ## Storybook
 
@@ -355,6 +396,7 @@ Uses **Vitest** with **React Testing Library** and **jsdom** for component testi
 | Vitest | 4.x | Testing framework |
 | date-fns | 4.x | Date utilities |
 | Luxon | 3.x | Timezone handling |
+| Socket.IO Client | 4.x | Real-time data sync |
 | Keycloak JS | — | Authentication (PKCE) |
 
 ## License

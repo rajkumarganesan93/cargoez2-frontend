@@ -1,13 +1,15 @@
 export interface User {
   id: string;
-  username: string;
+  name: string;
   email: string;
-  role: string;
-  status: string;
+  isActive: boolean;
+  createdAt: string;
+  modifiedAt: string;
 }
 
 export interface CreateUserInput {
-  username: string;
+  name: string;
   email: string;
-  role: string;
 }
+
+export type UpdateUserInput = Partial<CreateUserInput>;

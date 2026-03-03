@@ -13,6 +13,7 @@ This document covers development conventions, architecture decisions, and guidel
 - [API Integration Pattern](#api-integration-pattern)
 - [Styling Guidelines](#styling-guidelines)
 - [TypeScript Conventions](#typescript-conventions)
+- [Real-Time Data Sync](#real-time-data-sync)
 - [Git Workflow](#git-workflow)
 - [Troubleshooting](#troubleshooting)
 
@@ -443,6 +444,101 @@ export class MyUseCases {
 }
 ```
 
+## Admin App — Backend Integration
+
+The admin app is fully wired to the real user-service backend with Keycloak PKCE authentication and Socket.IO real-time sync.
+
+### How It Works
+
+```
+Browser → Keycloak login (PKCE) → JWT token
+  ├── configureClient({ baseURL: USER_SERVICE_URL, headers: { Authorization: Bearer <token> } })
+  ├── RealtimeProvider({ getToken: () => token, defaultServiceUrl: USER_SERVICE_URL })
+  └── App renders with authenticated API calls + real-time sync
+```
+
+The `AuthProvider` wraps the entire app in `main.tsx`. On successful Keycloak login, the `onToken` callback configures the API client with the user-service URL and Bearer token. A small `AppWithRealtime` wrapper component reads the token from `useAuth()` and passes it to `RealtimeProvider`.
+
+### Running the Full Stack
+
+**Prerequisites:**
+1. Keycloak running on port 8080 with the `cargoez` realm imported
+2. User-service running on port 3001 (from the backend repo)
+3. The `cargoez-web` Keycloak client must include `http://localhost:5174/*` in its redirect URIs
+
+**Start the admin app:**
+
+```bash
+npm run dev:admin
+```
+
+Open http://localhost:5174 — you'll be redirected to Keycloak login. Use `admin`/`admin123`.
+
+### Keycloak Client Configuration
+
+If you get an "Invalid parameter: redirect_uri" error, the `cargoez-web` client in Keycloak is missing port 5174. Add it via:
+
+1. Keycloak Admin Console (http://localhost:8080/admin)
+2. Select `cargoez` realm → Clients → `cargoez-web`
+3. Add `http://localhost:5174/*` to Valid Redirect URIs
+4. Add `http://localhost:5174` to Web Origins
+5. Save
+
+Or update `keycloak/cargoez-realm.json` in the backend repo and re-import.
+
+### Testing Real-Time Sync
+
+1. Open the admin app in **two browser tabs** (or one tab + Swagger UI at http://localhost:3001/api-docs)
+2. Create a user from Swagger UI or the second tab
+3. The first tab should show the new user instantly (no page refresh) + a Toast notification
+4. The "Live" indicator next to "User Management" shows the Socket.IO connection status
+
+### Admin App Clean Architecture
+
+```
+apps/admin/src/
+├── domain/
+│   ├── entities/
+│   │   ├── User.ts              # { id, name, email, isActive, createdAt, modifiedAt }
+│   │   └── SystemSettings.ts
+│   └── repositories/
+│       ├── IUserRepository.ts   # PaginatedResult<User>, CRUD + delete
+│       └── ISettingsRepository.ts
+├── application/
+│   └── use-cases/
+│       ├── UserUseCases.ts      # listUsers(page, limit), createUser, updateUser, deleteUser
+│       └── SettingsUseCases.ts
+├── infrastructure/
+│   ├── endpoints/
+│   │   └── adminEndpoints.ts    # USER_ENDPOINTS: /users, SETTINGS_ENDPOINTS
+│   └── repositories/
+│       ├── UserApiRepository.ts # Handles ApiResponse<PaginatedData<User>>
+│       └── SettingsApiRepository.ts
+├── presentation/
+│   ├── hooks/
+│   │   └── useAdmin.ts          # useUserList (paginated + realtime), useUserMutation, useSystemSettings
+│   ├── layouts/
+│   │   └── AdminLayout.tsx      # Sidebar nav, auth username + logout
+│   └── pages/
+│       ├── AdminDashboard.tsx
+│       ├── UserManagement.tsx   # Full CRUD, pagination, search, realtime indicator
+│       └── SystemSettings.tsx
+├── di/
+│   └── container.ts             # Wires UserApiRepository → UserUseCases
+├── App.tsx
+└── main.tsx                     # AuthProvider → AppWithRealtime → RealtimeProvider → App
+```
+
+### Environment Variables (Admin)
+
+```
+VITE_API_BASE_URL=http://localhost:4000
+VITE_USER_SERVICE_URL=http://localhost:3001
+VITE_KEYCLOAK_URL=http://localhost:8080
+VITE_KEYCLOAK_REALM=cargoez
+VITE_KEYCLOAK_CLIENT_ID=cargoez-web
+```
+
 ## Git Workflow
 
 ### Branch Naming
@@ -488,6 +584,135 @@ npm run build -w apps/admin
 git diff --cached --name-only | findstr ".env .npmrc"
 ```
 
+## Real-Time Data Sync
+
+The platform uses **Socket.IO** for real-time data synchronization. When one user modifies data, all other users viewing the same data see changes instantly without a page refresh.
+
+### Architecture
+
+```
+RealtimeProvider (wraps the app, provides token + default URL)
+  └── useRealtimeSync (per list/detail hook)
+        ├── Connects to backend Socket.IO server
+        ├── Subscribes to room: entity:{tableName} or entity:{tableName}:{id}
+        ├── Listens for entity.created, entity.updated, entity.deleted
+        └── Calls onEvent callback → refetch() + showToast()
+```
+
+### Backend Contract
+
+Backend services emit `DomainEvent` objects through Socket.IO:
+
+```typescript
+interface DomainEvent {
+  entity: string;        // e.g. "contacts", "freight"
+  action: 'created' | 'updated' | 'deleted';
+  entityId: string;
+  data?: Record<string, unknown>;
+  actor: string;
+  tenantId?: string;
+  timestamp: string;
+}
+```
+
+Room patterns:
+- `entity:{tableName}` -- list pages (e.g. `entity:contacts`)
+- `entity:{tableName}:{id}` -- detail pages (e.g. `entity:contacts:abc-123`)
+
+Clients subscribe/unsubscribe via: `socket.emit('subscribe', { room })` / `socket.emit('unsubscribe', { room })`
+
+### Provider Setup
+
+Both apps wrap their component tree with `RealtimeProvider` in `main.tsx`:
+
+```tsx
+import { RealtimeProvider } from "@rajkumarganesan93/uifunctions";
+
+// When AuthProvider is wired in:
+function AppProviders({ children }: { children: React.ReactNode }) {
+  const { token } = useAuth();
+  return (
+    <RealtimeProvider
+      getToken={() => token}
+      defaultServiceUrl={import.meta.env.VITE_API_BASE_URL}
+    >
+      {children}
+    </RealtimeProvider>
+  );
+}
+```
+
+Until `AuthProvider` is wired, `getToken` returns `undefined` and no socket connections are established.
+
+### Using useRealtimeSync in a List Hook
+
+```typescript
+import { useRealtimeSync } from "@rajkumarganesan93/uifunctions";
+import type { DomainEvent } from "@rajkumarganesan93/uifunctions";
+
+export function useContactList() {
+  const { showToast } = useToast();
+
+  const fetchContacts = useCallback(async () => {
+    // ... fetch logic
+  }, []);
+
+  const handleRealtimeEvent = useCallback(
+    (event: DomainEvent) => {
+      fetchContacts();
+      showToast("info", `A contact was ${event.action} by another user`);
+    },
+    [fetchContacts, showToast],
+  );
+
+  const { connected } = useRealtimeSync({
+    entity: "contacts",
+    onEvent: handleRealtimeEvent,
+  });
+
+  return { contacts, loading, refetch: fetchContacts, connected };
+}
+```
+
+### Using useRealtimeSync for a Detail Page
+
+```typescript
+const { connected } = useRealtimeSync({
+  entity: "contacts",
+  entityId: id,                      // subscribes to entity:contacts:{id}
+  onEvent: (event) => refetchContact(),
+});
+```
+
+### Hook Options
+
+| Option | Type | Required | Description |
+|---|---|---|---|
+| `entity` | `string` | Yes | Entity/table name (e.g. `"contacts"`) |
+| `entityId` | `string` | No | Specific entity ID for detail views |
+| `onEvent` | `(event: DomainEvent) => void` | Yes | Callback when a relevant event arrives |
+| `serviceUrl` | `string` | No | Override the default service URL |
+| `enabled` | `boolean` | No | Toggle sync on/off (default: `true`) |
+
+### Connection Management
+
+- `RealtimeProvider` shares socket connections per service URL across all hooks
+- Auto-reconnects on disconnection (exponential backoff up to 10s)
+- Cleans up all connections when the provider unmounts
+- JWT token is sent via `auth: { token }` on the WebSocket handshake
+
+### Environment Variables
+
+The default service URL comes from `VITE_API_BASE_URL`. If backend services run on different ports, override via the `serviceUrl` option:
+
+```typescript
+useRealtimeSync({
+  entity: "users",
+  serviceUrl: "http://localhost:3001",
+  onEvent: handleEvent,
+});
+```
+
 ## Troubleshooting
 
 ### Colors not rendering / Components look unstyled
@@ -518,4 +743,27 @@ npm run build -w packages/uicontrols
 1. Check that `VITE_API_BASE_URL` is set in `.env`
 2. Verify the backend services are running
 3. Check the browser console for CORS errors
-4. The app falls back to sample data when the API is unreachable — this is by design for development
+4. The app falls back to sample data when the API is unreachable -- this is by design for development
+
+### Keycloak login — "Invalid parameter: redirect_uri"
+
+The `cargoez-web` client in Keycloak doesn't include the app's port in its allowed redirect URIs. Add `http://localhost:5174/*` (for admin) via the Keycloak admin console or update the realm JSON. See [Admin App — Backend Integration](#admin-app--backend-integration).
+
+### Keycloak login — "Invalid user credentials"
+
+1. Verify the `cargoez` realm exists in Keycloak (http://localhost:8080/admin)
+2. Check that users were imported (realm JSON must be imported with `--import-realm`)
+3. Try resetting the password in Keycloak admin console → Users → Credentials tab
+4. Test credentials via ROPC: `POST http://localhost:8080/realms/cargoez/protocol/openid-connect/token` with `grant_type=password&client_id=cargoez-api&username=admin&password=admin123`
+
+### Admin app shows "Loading..." indefinitely
+
+The `AuthProvider` uses `onLoad: "login-required"`. If Keycloak is not running on port 8080, the app will hang. Start Keycloak first, then refresh the admin app.
+
+### Socket.IO not connecting
+
+1. Verify the backend service has Socket.IO enabled on the same HTTP server
+2. Check that `getToken()` returns a valid JWT (requires `AuthProvider` to be wired)
+3. Look for `[RealtimeSync] Connection error` warnings in the browser console
+4. Ensure CORS allows WebSocket connections from your frontend origin
+5. If using the API gateway URL, verify it proxies WebSocket upgrade requests

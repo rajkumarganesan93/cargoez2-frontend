@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@rajkumarganesan93/uicontrols";
-import type { ApiError } from "@rajkumarganesan93/uifunctions";
+import { useRealtimeSync } from "@rajkumarganesan93/uifunctions";
+import type { ApiError, DomainEvent } from "@rajkumarganesan93/uifunctions";
 import type { BookEntry, CreateBookEntryInput, UpdateBookEntryInput } from "../../domain";
 import { bookUseCases } from "../../di/container";
 
@@ -15,6 +16,7 @@ const sampleEntries: BookEntry[] = [
 export function useBooksList() {
   const [entries, setEntries] = useState<BookEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const { showToast } = useToast();
 
   const fetchEntries = useCallback(async () => {
     setLoading(true);
@@ -32,7 +34,20 @@ export function useBooksList() {
     fetchEntries();
   }, [fetchEntries]);
 
-  return { entries, loading, refetch: fetchEntries };
+  const handleRealtimeEvent = useCallback(
+    (event: DomainEvent) => {
+      fetchEntries();
+      showToast("info", `A booking entry was ${event.action} by another user`);
+    },
+    [fetchEntries, showToast],
+  );
+
+  const { connected } = useRealtimeSync({
+    entity: "books",
+    onEvent: handleRealtimeEvent,
+  });
+
+  return { entries, loading, refetch: fetchEntries, connected };
 }
 
 export function useBookDetail(id: string | undefined) {

@@ -1,5 +1,6 @@
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink } from "react-router-dom";
 import { Button } from "@rajkumarganesan93/uicontrols";
+import { useAuth } from "@rajkumarganesan93/auth";
 
 const navItems = [
   { label: "Dashboard", path: "/dashboard", icon: "📊" },
@@ -8,7 +9,7 @@ const navItems = [
 ];
 
 export function AdminLayout() {
-  const navigate = useNavigate();
+  const { userName, logout } = useAuth();
 
   return (
     <div className="flex min-h-screen bg-bg-default">
@@ -39,8 +40,8 @@ export function AdminLayout() {
         <header className="h-16 bg-bg-paper border-b border-grey-300 flex items-center justify-between px-6">
           <span className="text-lg font-semibold text-text-primary">CargoEz Administration</span>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-text-secondary">Admin</span>
-            <Button label="Logout" variant="text" color="error" size="small" onClick={() => navigate("/")} />
+            <span className="text-sm text-text-secondary">{userName ?? "Admin"}</span>
+            <Button label="Logout" variant="text" color="error" size="small" onClick={() => logout()} />
           </div>
         </header>
         <main className="flex-1 overflow-auto">

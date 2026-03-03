@@ -15,3 +15,6 @@ export * from "./validation";
 
 // Exceptions helpers
 export * from "./exceptions";
+
+// Real-time sync (Socket.IO)
+export * from "./realtime";

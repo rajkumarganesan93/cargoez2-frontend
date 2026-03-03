@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@rajkumarganesan93/uicontrols";
-import type { ApiError } from "@rajkumarganesan93/uifunctions";
+import { useRealtimeSync } from "@rajkumarganesan93/uifunctions";
+import type { ApiError, DomainEvent } from "@rajkumarganesan93/uifunctions";
 import type { Contact, CreateContactInput, UpdateContactInput } from "../../domain";
 import { contactUseCases } from "../../di/container";
 
@@ -31,7 +32,20 @@ export function useContactList() {
     fetchContacts();
   }, [fetchContacts]);
 
-  return { contacts, loading, refetch: fetchContacts, showToast };
+  const handleRealtimeEvent = useCallback(
+    (event: DomainEvent) => {
+      fetchContacts();
+      showToast("info", `A contact was ${event.action} by another user`);
+    },
+    [fetchContacts, showToast],
+  );
+
+  const { connected } = useRealtimeSync({
+    entity: "contacts",
+    onEvent: handleRealtimeEvent,
+  });
+
+  return { contacts, loading, refetch: fetchContacts, connected };
 }
 
 export function useContactDetail(id: string | undefined) {

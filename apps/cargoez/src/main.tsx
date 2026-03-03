@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { ThemeProvider, ToastProvider } from "@rajkumarganesan93/uicontrols";
-import { configureClient } from "@rajkumarganesan93/uifunctions";
+import { configureClient, RealtimeProvider } from "@rajkumarganesan93/uifunctions";
 import App from "./App";
 import "./index.css";
 
@@ -16,7 +16,12 @@ createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <ThemeProvider theme="light">
         <ToastProvider>
-          <App />
+          <RealtimeProvider
+            getToken={() => undefined}
+            defaultServiceUrl={import.meta.env.VITE_API_BASE_URL}
+          >
+            <App />
+          </RealtimeProvider>
         </ToastProvider>
       </ThemeProvider>
     </BrowserRouter>

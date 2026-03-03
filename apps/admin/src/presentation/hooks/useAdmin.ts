@@ -1,36 +1,56 @@
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@rajkumarganesan93/uicontrols";
-import type { ApiError } from "@rajkumarganesan93/uifunctions";
-import type { User, CreateUserInput, SystemSettings } from "../../domain";
+import { useRealtimeSync, type ApiError, type DomainEvent } from "@rajkumarganesan93/uifunctions";
+import type { User, CreateUserInput, UpdateUserInput, SystemSettings, PaginatedResult } from "../../domain";
 import { userUseCases, settingsUseCases } from "../../di/container";
 
-const sampleUsers: User[] = [
-  { id: "1", username: "admin", email: "admin@cargoez.com", role: "admin", status: "Active" },
-  { id: "2", username: "testuser", email: "testuser@cargoez.com", role: "user", status: "Active" },
-  { id: "3", username: "manager", email: "manager@cargoez.com", role: "manager", status: "Active" },
-];
-
-export function useUserList() {
+export function useUserList(initialPage = 1, initialLimit = 10) {
   const [users, setUsers] = useState<User[]>([]);
+  const [meta, setMeta] = useState({ total: 0, page: initialPage, limit: initialLimit, totalPages: 0 });
   const [loading, setLoading] = useState(false);
+  const { showToast } = useToast();
 
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(async (page?: number, limit?: number) => {
     setLoading(true);
     try {
-      const data = await userUseCases.listUsers();
-      setUsers(data);
-    } catch {
-      setUsers(sampleUsers);
+      const result: PaginatedResult<User> = await userUseCases.listUsers(
+        page ?? meta.page,
+        limit ?? meta.limit,
+      );
+      setUsers(result.items);
+      setMeta(result.meta);
+    } catch (err) {
+      showToast("error", (err as ApiError).message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [meta.page, meta.limit, showToast]);
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    fetchUsers(initialPage, initialLimit);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { users, loading, refetch: fetchUsers };
+  const goToPage = useCallback((page: number) => {
+    fetchUsers(page, meta.limit);
+  }, [fetchUsers, meta.limit]);
+
+  const handleRealtimeEvent = useCallback((event: DomainEvent) => {
+    const actionLabels: Record<string, string> = {
+      created: "created",
+      updated: "updated",
+      deleted: "deleted",
+    };
+    showToast("info", `A user was ${actionLabels[event.action] ?? "modified"} by another user`);
+    fetchUsers(meta.page, meta.limit);
+  }, [showToast, fetchUsers, meta.page, meta.limit]);
+
+  const { connected } = useRealtimeSync({
+    entity: "users",
+    serviceUrl: import.meta.env.VITE_USER_SERVICE_URL,
+    onEvent: handleRealtimeEvent,
+  });
+
+  return { users, meta, loading, refetch: fetchUsers, goToPage, connected };
 }
 
 export function useUserMutation() {
@@ -51,18 +71,35 @@ export function useUserMutation() {
     }
   };
 
-  const disableUser = async (id: string): Promise<boolean> => {
+  const updateUser = async (id: string, data: UpdateUserInput): Promise<boolean> => {
+    setSaving(true);
     try {
-      const result = await userUseCases.disableUser(id);
+      const result = await userUseCases.updateUser(id, data);
       showToast("success", result.message);
       return true;
     } catch (err) {
       showToast("error", (err as ApiError).message);
       return false;
+    } finally {
+      setSaving(false);
     }
   };
 
-  return { saving, createUser, disableUser };
+  const deleteUser = async (id: string): Promise<boolean> => {
+    setSaving(true);
+    try {
+      const result = await userUseCases.deleteUser(id);
+      showToast("success", result.message);
+      return true;
+    } catch (err) {
+      showToast("error", (err as ApiError).message);
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return { saving, createUser, updateUser, deleteUser };
 }
 
 export function useSystemSettings() {

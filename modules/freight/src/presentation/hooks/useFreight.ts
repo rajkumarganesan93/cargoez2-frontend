@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@rajkumarganesan93/uicontrols";
-import type { ApiError } from "@rajkumarganesan93/uifunctions";
+import { useRealtimeSync } from "@rajkumarganesan93/uifunctions";
+import type { ApiError, DomainEvent } from "@rajkumarganesan93/uifunctions";
 import type { Shipment, CreateShipmentInput, UpdateShipmentInput } from "../../domain";
 import { freightUseCases } from "../../di/container";
 
@@ -14,6 +15,7 @@ const sampleShipments: Shipment[] = [
 export function useFreightList() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(false);
+  const { showToast } = useToast();
 
   const fetchShipments = useCallback(async () => {
     setLoading(true);
@@ -31,7 +33,20 @@ export function useFreightList() {
     fetchShipments();
   }, [fetchShipments]);
 
-  return { shipments, loading, refetch: fetchShipments };
+  const handleRealtimeEvent = useCallback(
+    (event: DomainEvent) => {
+      fetchShipments();
+      showToast("info", `A shipment was ${event.action} by another user`);
+    },
+    [fetchShipments, showToast],
+  );
+
+  const { connected } = useRealtimeSync({
+    entity: "freight",
+    onEvent: handleRealtimeEvent,
+  });
+
+  return { shipments, loading, refetch: fetchShipments, connected };
 }
 
 export function useFreightDetail(id: string | undefined) {
