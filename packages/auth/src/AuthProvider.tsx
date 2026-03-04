@@ -1,7 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type Keycloak from "keycloak-js";
 import { getKeycloak, type KeycloakConfig } from "./keycloak";
 import { AuthContext, type AuthContextValue } from "./AuthContext";
+
+const TOKEN_REFRESH_INTERVAL_MS = 30_000;
+const TOKEN_MIN_VALIDITY_SECONDS = 70;
 
 interface AuthProviderProps {
   config?: Partial<KeycloakConfig>;
@@ -14,9 +17,32 @@ export function AuthProvider({ config, children, onToken, loadingComponent }: Au
   const [keycloak, setKeycloak] = useState<Keycloak | null>(null);
   const [initialized, setInitialized] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
+  const [token, setToken] = useState<string | undefined>(undefined);
+  const onTokenRef = useRef(onToken);
+  onTokenRef.current = onToken;
+
+  const publishToken = useCallback((kc: Keycloak) => {
+    if (kc.token) {
+      setToken(kc.token);
+      onTokenRef.current?.(kc.token);
+    }
+  }, []);
 
   useEffect(() => {
     const kc = getKeycloak(config);
+
+    kc.onTokenExpired = () => {
+      kc.updateToken(TOKEN_MIN_VALIDITY_SECONDS)
+        .then((refreshed) => {
+          if (refreshed) {
+            publishToken(kc);
+          }
+        })
+        .catch(() => {
+          console.warn("Token expired and refresh failed, redirecting to login");
+          kc.login();
+        });
+    };
 
     kc.init({
       onLoad: "login-required",
@@ -26,23 +52,22 @@ export function AuthProvider({ config, children, onToken, loadingComponent }: Au
       .then((auth) => {
         setKeycloak(kc);
         setAuthenticated(auth);
-        setInitialized(true);
-        if (auth && kc.token && onToken) {
-          onToken(kc.token);
+        if (auth) {
+          publishToken(kc);
         }
+        setInitialized(true);
       })
       .catch((err) => {
         console.error("Keycloak init failed:", err);
         setInitialized(true);
       });
 
-    // Token refresh
     const refreshInterval = setInterval(() => {
       if (kc.authenticated) {
-        kc.updateToken(30)
+        kc.updateToken(TOKEN_MIN_VALIDITY_SECONDS)
           .then((refreshed) => {
-            if (refreshed && kc.token && onToken) {
-              onToken(kc.token);
+            if (refreshed) {
+              publishToken(kc);
             }
           })
           .catch(() => {
@@ -50,7 +75,7 @@ export function AuthProvider({ config, children, onToken, loadingComponent }: Au
             kc.login();
           });
       }
-    }, 60000);
+    }, TOKEN_REFRESH_INTERVAL_MS);
 
     return () => clearInterval(refreshInterval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -75,19 +100,34 @@ export function AuthProvider({ config, children, onToken, loadingComponent }: Au
     [keycloak]
   );
 
+  const getToken = useCallback(async (): Promise<string | undefined> => {
+    if (!keycloak?.authenticated) return undefined;
+    try {
+      await keycloak.updateToken(TOKEN_MIN_VALIDITY_SECONDS);
+      if (keycloak.token) {
+        publishToken(keycloak);
+        return keycloak.token;
+      }
+    } catch {
+      keycloak.login();
+    }
+    return undefined;
+  }, [keycloak, publishToken]);
+
   const value: AuthContextValue = useMemo(
     () => ({
       keycloak,
       initialized,
       authenticated,
-      token: keycloak?.token,
+      token,
       userName: keycloak?.tokenParsed?.preferred_username as string | undefined,
       roles: keycloak?.realmAccess?.roles ?? [],
       login,
       logout,
       hasRole,
+      getToken,
     }),
-    [keycloak, initialized, authenticated, login, logout, hasRole]
+    [keycloak, initialized, authenticated, token, login, logout, hasRole, getToken]
   );
 
   if (!initialized) {

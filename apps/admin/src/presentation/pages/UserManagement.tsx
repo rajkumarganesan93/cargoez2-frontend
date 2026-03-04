@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button, TextField } from "@rajkumarganesan93/uicontrols";
 import { useUserList, useUserMutation } from "../hooks/useAdmin";
 import type { User } from "../../domain";
@@ -8,25 +8,20 @@ type FormMode = "closed" | "create" | "edit";
 interface UserFormData {
   name: string;
   email: string;
+  phone: string;
 }
 
-const emptyForm: UserFormData = { name: "", email: "" };
+const emptyForm: UserFormData = { name: "", email: "", phone: "" };
 
 export default function UserManagement() {
-  const { users, meta, loading, refetch, goToPage, connected } = useUserList();
+  const { users, meta, loading, search, refetch, goToPage, handleSearch, connected } = useUserList();
   const { saving, createUser, updateUser, deleteUser } = useUserMutation();
 
-  const [search, setSearch] = useState("");
   const [formMode, setFormMode] = useState<FormMode>("closed");
   const [formData, setFormData] = useState<UserFormData>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-
-  const filtered = users.filter(
-    (u) =>
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase()),
-  );
+  const [searchInput, setSearchInput] = useState(search);
 
   const openCreateForm = () => {
     setFormData(emptyForm);
@@ -35,7 +30,7 @@ export default function UserManagement() {
   };
 
   const openEditForm = (user: User) => {
-    setFormData({ name: user.name, email: user.email });
+    setFormData({ name: user.name, email: user.email, phone: user.phone ?? "" });
     setEditingId(user.id);
     setFormMode("edit");
   };
@@ -49,16 +44,22 @@ export default function UserManagement() {
   const handleSubmit = async () => {
     if (!formData.name.trim() || !formData.email.trim()) return;
 
+    const payload = {
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      ...(formData.phone.trim() ? { phone: formData.phone.trim() } : {}),
+    };
+
     let success = false;
     if (formMode === "create") {
-      success = await createUser(formData);
+      success = await createUser(payload);
     } else if (formMode === "edit" && editingId) {
-      success = await updateUser(editingId, formData);
+      success = await updateUser(editingId, payload);
     }
 
     if (success) {
       closeForm();
-      refetch(meta.page, meta.limit);
+      refetch();
     }
   };
 
@@ -66,9 +67,24 @@ export default function UserManagement() {
     const success = await deleteUser(id);
     if (success) {
       setDeleteConfirmId(null);
-      refetch(meta.page, meta.limit);
+      refetch();
     }
   };
+
+  const onSearchChange = useCallback((value: string) => {
+    setSearchInput(value);
+  }, []);
+
+  const onSearchKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSearch(searchInput);
+    }
+  }, [handleSearch, searchInput]);
+
+  const onSearchClear = useCallback(() => {
+    setSearchInput("");
+    handleSearch("");
+  }, [handleSearch]);
 
   const formatDate = (dateStr: string) => {
     try {
@@ -112,7 +128,7 @@ export default function UserManagement() {
           <h2 className="text-lg font-semibold text-text-primary mb-4">
             {formMode === "create" ? "Create New User" : "Edit User"}
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <TextField
               id="user-name"
               label="Name"
@@ -126,6 +142,14 @@ export default function UserManagement() {
               type="email"
               value={formData.email}
               onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+              fullWidth
+            />
+            <TextField
+              id="user-phone"
+              label="Phone"
+              value={formData.phone}
+              onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
+              placeholder="+1234567890"
               fullWidth
             />
           </div>
@@ -143,14 +167,33 @@ export default function UserManagement() {
       )}
 
       {/* Search */}
-      <div className="mb-4">
-        <TextField
-          id="user-search"
-          placeholder="Search by name or email..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          fullWidth
+      <div className="mb-4 flex gap-2 items-end">
+        <div className="flex-1">
+          <TextField
+            id="user-search"
+            placeholder="Search by name or email..."
+            value={searchInput}
+            onChange={(e) => onSearchChange(e.target.value)}
+            onKeyDown={onSearchKeyDown}
+            fullWidth
+          />
+        </div>
+        <Button
+          label="Search"
+          variant="contained"
+          color="primary"
+          size="small"
+          onClick={() => handleSearch(searchInput)}
         />
+        {searchInput && (
+          <Button
+            label="Clear"
+            variant="outlined"
+            color="secondary"
+            size="small"
+            onClick={onSearchClear}
+          />
+        )}
       </div>
 
       {/* Table */}
@@ -165,36 +208,30 @@ export default function UserManagement() {
               <tr>
                 <th className="px-4 py-3 text-sm font-semibold text-text-primary">Name</th>
                 <th className="px-4 py-3 text-sm font-semibold text-text-primary">Email</th>
-                <th className="px-4 py-3 text-sm font-semibold text-text-primary">Status</th>
+                <th className="px-4 py-3 text-sm font-semibold text-text-primary">Phone</th>
                 <th className="px-4 py-3 text-sm font-semibold text-text-primary">Created</th>
+                <th className="px-4 py-3 text-sm font-semibold text-text-primary">Modified</th>
                 <th className="px-4 py-3 text-sm font-semibold text-text-primary">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {users.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-text-secondary">
+                  <td colSpan={6} className="px-4 py-8 text-center text-text-secondary">
                     {search ? "No users match your search." : "No users found."}
                   </td>
                 </tr>
               ) : (
-                filtered.map((user) => (
+                users.map((user) => (
                   <tr key={user.id} className="border-t border-grey-300 hover:bg-action-hover">
                     <td className="px-4 py-3 text-sm text-text-primary font-medium">{user.name}</td>
                     <td className="px-4 py-3 text-sm text-text-secondary">{user.email}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full font-medium ${
-                          user.isActive
-                            ? "bg-success/10 text-success"
-                            : "bg-error/10 text-error"
-                        }`}
-                      >
-                        {user.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </td>
+                    <td className="px-4 py-3 text-sm text-text-secondary">{user.phone ?? "—"}</td>
                     <td className="px-4 py-3 text-sm text-text-secondary">
                       {formatDate(user.createdAt)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-text-secondary">
+                      {formatDate(user.modifiedAt)}
                     </td>
                     <td className="px-4 py-3">
                       {deleteConfirmId === user.id ? (

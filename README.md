@@ -52,15 +52,15 @@ Micro-frontend monorepo for the CargoEz logistics platform, built with **React 1
 FRONTEND/
 ├── packages/                  # Shared libraries (publishable)
 │   ├── uicontrols/            #   UI component library (Button, TextField, Toast)
-│   ├── uifunctions/           #   Utility functions (API client, date, validation)
-│   └── auth/                  #   Keycloak PKCE authentication
+│   ├── uifunctions/           #   Utility functions (API client, date, validation, real-time)
+│   └── auth/                  #   Keycloak PKCE authentication with token refresh
 ├── modules/                   # Micro-frontend feature modules
 │   ├── contacts/              #   Contact management
 │   ├── freight/               #   Freight & shipment tracking
 │   └── books/                 #   Booking ledger & invoicing
 ├── apps/                      # Deployable applications
 │   ├── cargoez/               #   Main web application (shell)
-│   └── admin/                 #   Admin panel
+│   └── admin/                 #   Admin panel (connected to real backend)
 ├── package.json               # Root workspace config
 ├── tsconfig.base.json         # Shared TypeScript config
 ├── .npmrc.example             # NPM registry config template
@@ -73,7 +73,7 @@ FRONTEND/
 - **npm** >= 9.x (uses npm workspaces)
 - **Git**
 - **Keycloak** >= 26.x (for authentication — required by the Admin Panel)
-- **CargoEz Backend** running (user-service on port 3001, API Gateway on port 4000)
+- **CargoEz Backend** running (user-service on port 3001, API Portal on port 4000)
 
 ## Getting Started
 
@@ -105,6 +105,7 @@ This installs dependencies for all workspaces (packages, modules, and apps) in a
 ### 4. Build shared packages
 
 ```bash
+npm run build -w packages/auth
 npm run build -w packages/uifunctions
 npm run build -w packages/uicontrols
 ```
@@ -168,7 +169,8 @@ Standalone administration application with its own Clean Architecture structure.
 
 **Key features:**
 - **Keycloak PKCE authentication** — login required, JWT tokens on all API calls
-- **User management** — full CRUD with paginated list, inline create/edit forms, soft-delete with confirmation
+- **Automatic token refresh** — proactive refresh before expiry, 401 retry interceptor, `onTokenExpired` safety net
+- **User management** — full CRUD with paginated list, inline create/edit forms, server-side search, phone field, soft-delete with confirmation
 - **Real-time sync** — live/offline indicator, auto-refresh when another user modifies data via Socket.IO
 - **System settings** — API Gateway and Keycloak configuration display
 - **Admin dashboard** — system stats overview
@@ -208,16 +210,24 @@ Reusable UI component library with theme support.
 Shared utility functions — applications import utilities exclusively from this package.
 
 **Modules:**
-- **API** — Axios client with configurable base URL, response interceptors, structured error handling
+- **API** — Axios client with `setAuthToken()` for dynamic token injection, request interceptor, 401 retry with `setTokenRefresher()`, structured error handling
+- **Real-Time** — `RealtimeProvider` context, `useRealtimeSync` hook for Socket.IO live data sync
 - **Date/Time** — `formatDate`, `timeAgo`, `convertTimezone` (via date-fns and Luxon)
 - **Text** — `slugify`, `capitalizeFirstLetter`, `truncate`
 - **Validation** — `rules.required()`, `rules.email()`, `rules.minLength()`, `rules.maxLength()`, `rules.pattern()`
 
 ### `@rajkumarganesan93/auth`
 
-Keycloak PKCE authentication package.
+Keycloak PKCE authentication package with automatic token refresh.
 
 **Exports:** `AuthProvider`, `ProtectedRoute`, `useAuth`
+
+**Token lifecycle:**
+- Proactive refresh every 30 seconds (refreshes if token expires within 70 seconds)
+- `onTokenExpired` event handler as safety net
+- `getToken()` async method for on-demand token refresh
+- Automatic redirect to Keycloak login on refresh failure
+- Token state synced to React context (re-renders consumers on refresh)
 
 ## Clean Architecture
 
@@ -288,7 +298,7 @@ Both applications use `.env` files (not committed; `.env.example` is provided):
 
 | Variable | Description | Default | Used by |
 |---|---|---|---|
-| `VITE_API_BASE_URL` | Backend API gateway URL | `http://localhost:4000` | Both apps |
+| `VITE_API_BASE_URL` | Backend API Portal URL | `http://localhost:4000` | Both apps |
 | `VITE_USER_SERVICE_URL` | User service direct URL | `http://localhost:3001` | Admin only |
 | `VITE_KEYCLOAK_URL` | Keycloak server URL | `http://localhost:8080` | Admin only |
 | `VITE_KEYCLOAK_REALM` | Keycloak realm name | `cargoez` | Admin only |
@@ -298,15 +308,37 @@ Both applications use `.env` files (not committed; `.env.example` is provided):
 
 This frontend connects to the [CargoEz Backend](https://github.com/rajkumarganesan93/cargoez2-backend) microservices:
 
-| Service | Port | Purpose |
-|---|---|---|
-| **API Gateway** | 4000 | Entry point for module API calls (contacts, freight, books) |
-| **User Service** | 3001 | User CRUD — Admin Panel connects directly |
-| **Keycloak** | 8080 | Authentication (realm: `cargoez`, PKCE client: `cargoez-web`) |
+| Service | Port | Swagger UI | Purpose |
+|---|---|---|---|
+| **API Portal** | 4000 | http://localhost:4000/api-docs | Aggregated Swagger + API routing |
+| **User Service** | 3001 | http://localhost:3001/user-service/api-docs | User CRUD — Admin Panel connects directly |
+| **Keycloak** | 8080 | — | Authentication (realm: `cargoez`, PKCE client: `cargoez-web`) |
+
+### API Endpoint Convention
+
+All backend service endpoints are prefixed with the service name. For the user-service:
+
+```
+Base URL: http://localhost:3001  (or http://localhost:4000 via API Portal)
+
+GET    /user-service/users                  # List users (paginated, searchable)
+GET    /user-service/users/:id              # Get user by ID
+GET    /user-service/users/me               # Get current user context
+POST   /user-service/users                  # Create user (admin role)
+PUT    /user-service/users/:id              # Update user (admin role)
+DELETE /user-service/users/:id              # Soft-delete user (admin role)
+GET    /user-service/health                 # Health check (public)
+```
 
 ### Authentication
 
-The **Admin Panel** uses Keycloak PKCE authentication via the `@rajkumarganesan93/auth` package. On login, a JWT token is obtained and automatically attached to all API calls via the `configureClient` function. The token is also passed to `RealtimeProvider` for authenticated Socket.IO connections.
+The **Admin Panel** uses Keycloak PKCE authentication via the `@rajkumarganesan93/auth` package:
+
+1. On login, a JWT access token is obtained via PKCE Authorization Code flow
+2. The `onToken` callback calls `setAuthToken(token)` to store the token in the axios module
+3. A **request interceptor** dynamically injects `Authorization: Bearer <token>` before every API request
+4. Token refresh is proactive (every 30s) with a 401 retry interceptor as backup
+5. The token is also passed to `RealtimeProvider` for authenticated Socket.IO connections
 
 **Keycloak client setup (required):** The `cargoez-web` client in Keycloak must have these redirect URIs configured:
 - `http://localhost:5173/*` (CargoEz app)
@@ -322,15 +354,14 @@ The **Admin Panel** uses Keycloak PKCE authentication via the `@rajkumarganesan9
 
 ### API Response Format
 
-All APIs return a consistent JSON structure:
+All APIs return a consistent JSON envelope:
 
 ```json
 {
   "success": true,
   "messageCode": "CREATED",
-  "message": "User created successfully",
-  "data": { ... },
-  "timestamp": "2026-02-27T10:00:00.000Z"
+  "message": "Resource created successfully",
+  "data": { ... }
 }
 ```
 
@@ -339,18 +370,35 @@ Paginated list responses:
 ```json
 {
   "success": true,
+  "messageCode": "LIST_FETCHED",
   "data": {
-    "items": [...],
-    "meta": { "total": 50, "page": 1, "limit": 20, "totalPages": 3 }
+    "data": [ ... ],
+    "pagination": { "page": 1, "limit": 10, "total": 42, "totalPages": 5 }
   }
 }
 ```
 
 The `uifunctions` API client includes interceptors that extract backend messages for display via the Toast notification system. Success and error messages always come from the backend, not hardcoded in the frontend.
 
+### User Entity
+
+```typescript
+interface User {
+  id: string;              // UUID
+  name: string;
+  email: string;
+  phone?: string;
+  createdAt: string;       // ISO 8601
+  modifiedAt: string;      // ISO 8601
+  createdBy?: string;
+  modifiedBy?: string;
+  tenantId?: string;
+}
+```
+
 ### Real-Time Data Sync
 
-The Admin Panel uses Socket.IO to receive real-time updates when data is modified by another user. The user-service emits `entity.created`, `entity.updated`, and `entity.deleted` events. The frontend auto-refreshes affected lists and shows Toast notifications. See [DEVELOPMENT.md](DEVELOPMENT.md) for integration details.
+The Admin Panel uses Socket.IO to receive real-time updates when data is modified by another user. The user-service emits `data-changed` events. The frontend auto-refreshes affected lists and shows Toast notifications. See [DEVELOPMENT.md](DEVELOPMENT.md) for integration details.
 
 ## Storybook
 

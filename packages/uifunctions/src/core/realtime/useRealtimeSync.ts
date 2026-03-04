@@ -4,7 +4,7 @@ import { getOrCreateSocket } from "./socketManager";
 import { useRealtimeContext } from "./RealtimeProvider";
 import type { DomainEvent, UseRealtimeSyncOptions } from "./types";
 
-const EVENTS = ["entity.created", "entity.updated", "entity.deleted"] as const;
+const DATA_CHANGED_EVENT = "data-changed";
 
 export function useRealtimeSync(options: UseRealtimeSyncOptions): { connected: boolean } {
   const { entity, entityId, onEvent, serviceUrl, enabled = true } = options;
@@ -30,15 +30,13 @@ export function useRealtimeSync(options: UseRealtimeSyncOptions): { connected: b
 
     socket.emit("subscribe", { room });
 
-    const handleEvent = (event: DomainEvent) => {
+    const handleDataChanged = (event: DomainEvent) => {
       if (event.entity === entity) {
         onEventRef.current(event);
       }
     };
 
-    for (const eventName of EVENTS) {
-      socket.on(eventName, handleEvent);
-    }
+    socket.on(DATA_CHANGED_EVENT, handleDataChanged);
 
     const handleConnect = () => setConnected(true);
     const handleDisconnect = () => setConnected(false);
@@ -52,9 +50,7 @@ export function useRealtimeSync(options: UseRealtimeSyncOptions): { connected: b
 
     return () => {
       socket.emit("unsubscribe", { room });
-      for (const eventName of EVENTS) {
-        socket.off(eventName, handleEvent);
-      }
+      socket.off(DATA_CHANGED_EVENT, handleDataChanged);
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);
     };

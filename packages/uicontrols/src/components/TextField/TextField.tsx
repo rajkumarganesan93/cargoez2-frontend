@@ -25,6 +25,8 @@ export interface TextFieldProps {
   validations?: ValidationRule[];
   helperText?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
   readOnly?: boolean;
   autoFocus?: boolean;
 }
@@ -58,6 +60,8 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
       validations = [],
       helperText,
       onChange,
+      onKeyDown,
+      onBlur,
       readOnly = false,
       autoFocus = false,
     },
@@ -138,6 +142,8 @@ export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(
           aria-invalid={!!errorMessage}
           aria-describedby={helperText ? `${id}-helper-text` : undefined}
           onChange={onChange}
+          onKeyDown={onKeyDown}
+          onBlur={onBlur}
           className={inputClasses}
         />
         {(helperText || errorMessage) && (

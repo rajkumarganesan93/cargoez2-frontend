@@ -1,5 +1,5 @@
 import type { User, CreateUserInput, UpdateUserInput } from "../../domain";
-import type { IUserRepository, MutationResult, PaginatedResult } from "../../domain";
+import type { IUserRepository, MutationResult, PaginatedResult, ListParams } from "../../domain";
 
 export class UserUseCases {
   private readonly repository: IUserRepository;
@@ -8,8 +8,8 @@ export class UserUseCases {
     this.repository = repository;
   }
 
-  async listUsers(page?: number, limit?: number): Promise<PaginatedResult<User>> {
-    return this.repository.getAll(page, limit);
+  async listUsers(params?: ListParams): Promise<PaginatedResult<User>> {
+    return this.repository.getAll(params);
   }
 
   async getUser(id: string): Promise<User> {

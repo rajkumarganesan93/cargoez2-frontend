@@ -11,6 +11,7 @@ export interface AuthContextValue {
   login: () => Promise<void>;
   logout: () => Promise<void>;
   hasRole: (role: string) => boolean;
+  getToken: () => Promise<string | undefined>;
 }
 
 const defaultValue: AuthContextValue = {
@@ -23,6 +24,7 @@ const defaultValue: AuthContextValue = {
   login: async () => {},
   logout: async () => {},
   hasRole: () => false,
+  getToken: async () => undefined,
 };
 
 export const AuthContext = createContext<AuthContextValue>(defaultValue);

@@ -1,16 +1,35 @@
-import { api, type ApiResponse, type PaginatedData } from "@rajkumarganesan93/uifunctions";
+import { api, type ApiResponse } from "@rajkumarganesan93/uifunctions";
 import type { User, CreateUserInput, UpdateUserInput } from "../../domain";
-import type { IUserRepository, MutationResult, PaginatedResult } from "../../domain";
+import type { IUserRepository, MutationResult, PaginatedResult, ListParams } from "../../domain";
 import { USER_ENDPOINTS } from "../endpoints/adminEndpoints";
 
+interface BackendPaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export class UserApiRepository implements IUserRepository {
-  async getAll(page = 1, limit = 10): Promise<PaginatedResult<User>> {
-    const res = await api.get<ApiResponse<PaginatedData<User>>>(
+  async getAll(params: ListParams = {}): Promise<PaginatedResult<User>> {
+    const { page = 1, limit = 10, sortBy, sortOrder, search } = params;
+    const queryParams: Record<string, string | number> = { page, limit };
+    if (sortBy) queryParams.sortBy = sortBy;
+    if (sortOrder) queryParams.sortOrder = sortOrder;
+    if (search) queryParams.search = search;
+
+    const res = await api.get<ApiResponse<BackendPaginatedResponse<User>>>(
       USER_ENDPOINTS.LIST,
-      { params: { page, limit } },
+      { params: queryParams },
     );
-    const paginated = res.data.data;
-    return { items: paginated.items, meta: paginated.meta };
+    const body = res.data.data;
+    return {
+      items: body.data,
+      meta: body.pagination,
+    };
   }
 
   async getById(id: string): Promise<User> {

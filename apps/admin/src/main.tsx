@@ -1,11 +1,18 @@
-import { StrictMode, useCallback } from "react";
+import { StrictMode, useCallback, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { ThemeProvider, ToastProvider } from "@rajkumarganesan93/uicontrols";
-import { configureClient, RealtimeProvider } from "@rajkumarganesan93/uifunctions";
+import {
+  configureClient,
+  setAuthToken,
+  setTokenRefresher,
+  RealtimeProvider,
+} from "@rajkumarganesan93/uifunctions";
 import { AuthProvider, useAuth } from "@rajkumarganesan93/auth";
 import App from "./App";
 import "./index.css";
+
+const USER_SERVICE_URL = import.meta.env.VITE_USER_SERVICE_URL || "http://localhost:3001";
 
 const keycloakConfig = {
   url: import.meta.env.VITE_KEYCLOAK_URL,
@@ -13,22 +20,36 @@ const keycloakConfig = {
   clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID,
 };
 
+configureClient({ baseURL: USER_SERVICE_URL, timeout: 10000 });
+
 function handleToken(token: string) {
-  configureClient({
-    baseURL: import.meta.env.VITE_USER_SERVICE_URL,
-    timeout: 10000,
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  setAuthToken(token);
 }
 
 function AppWithRealtime() {
-  const { token } = useAuth();
-  const getToken = useCallback(() => token, [token]);
+  const { token, getToken } = useAuth();
+  const getTokenSync = useCallback(() => token, [token]);
+
+  useEffect(() => {
+    if (token) {
+      setAuthToken(token);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    setTokenRefresher(async () => {
+      const freshToken = await getToken();
+      if (freshToken) {
+        setAuthToken(freshToken);
+      }
+      return freshToken;
+    });
+  }, [getToken]);
 
   return (
     <RealtimeProvider
-      getToken={getToken}
-      defaultServiceUrl={import.meta.env.VITE_USER_SERVICE_URL}
+      getToken={getTokenSync}
+      defaultServiceUrl={USER_SERVICE_URL}
     >
       <App />
     </RealtimeProvider>

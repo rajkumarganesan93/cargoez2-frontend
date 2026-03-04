@@ -5,13 +5,28 @@ export interface MutationResult<T> {
   message: string;
 }
 
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export interface PaginatedResult<T> {
   items: T[];
-  meta: { total: number; page: number; limit: number; totalPages: number };
+  meta: PaginationMeta;
+}
+
+export interface ListParams {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+  search?: string;
 }
 
 export interface IUserRepository {
-  getAll(page?: number, limit?: number): Promise<PaginatedResult<User>>;
+  getAll(params?: ListParams): Promise<PaginatedResult<User>>;
   getById(id: string): Promise<User>;
   create(input: CreateUserInput): Promise<MutationResult<User>>;
   update(id: string, input: UpdateUserInput): Promise<MutationResult<User>>;

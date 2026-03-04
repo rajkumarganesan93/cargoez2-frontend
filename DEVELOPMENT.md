@@ -11,9 +11,11 @@ This document covers development conventions, architecture decisions, and guidel
 - [Adding a New Utility Function](#adding-a-new-utility-function)
 - [Clean Architecture Guidelines](#clean-architecture-guidelines)
 - [API Integration Pattern](#api-integration-pattern)
+- [Authentication Architecture](#authentication-architecture)
+- [Real-Time Data Sync](#real-time-data-sync)
 - [Styling Guidelines](#styling-guidelines)
 - [TypeScript Conventions](#typescript-conventions)
-- [Real-Time Data Sync](#real-time-data-sync)
+- [Admin App — Backend Integration](#admin-app--backend-integration)
 - [Git Workflow](#git-workflow)
 - [Troubleshooting](#troubleshooting)
 
@@ -33,6 +35,7 @@ cp .npmrc.example .npmrc
 npm install
 
 # Build shared packages (required before running apps)
+npm run build -w packages/auth
 npm run build -w packages/uifunctions
 npm run build -w packages/uicontrols
 
@@ -52,7 +55,8 @@ npm run dev:admin
 npm run dev:cargoez        # port 5173
 npm run dev:admin          # port 5174
 
-# If you changed uicontrols or uifunctions, rebuild them
+# If you changed auth, uicontrols, or uifunctions, rebuild them
+npm run build -w packages/auth
 npm run build -w packages/uicontrols
 npm run build -w packages/uifunctions
 
@@ -253,36 +257,57 @@ All shared utilities live in `packages/uifunctions/src/core/`.
 ### Entity Definition (Domain)
 
 ```typescript
-// domain/entities/Report.ts
-export interface Report {
+// domain/entities/User.ts
+export interface User {
   id: string;
-  title: string;
+  name: string;
+  email: string;
+  phone?: string;
   createdAt: string;
+  modifiedAt: string;
+  createdBy?: string;
+  modifiedBy?: string;
+  tenantId?: string;
 }
 
-export interface CreateReportInput {
-  title: string;
+export interface CreateUserInput {
+  name: string;
+  email: string;
+  phone?: string;
 }
 
-export type UpdateReportInput = Partial<CreateReportInput>;
+export type UpdateUserInput = Partial<CreateUserInput>;
 ```
 
 ### Repository Interface (Domain)
 
 ```typescript
-// domain/repositories/IReportRepository.ts
-import type { Report, CreateReportInput, UpdateReportInput } from "../entities/Report";
+// domain/repositories/IUserRepository.ts
+import type { User, CreateUserInput, UpdateUserInput } from "../entities/User";
 
 export interface MutationResult<T> {
   data: T;
   message: string;
 }
 
-export interface IReportRepository {
-  getAll(): Promise<Report[]>;
-  getById(id: string): Promise<Report>;
-  create(input: CreateReportInput): Promise<MutationResult<Report>>;
-  update(id: string, input: UpdateReportInput): Promise<MutationResult<Report>>;
+export interface ListParams {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+  search?: string;
+}
+
+export interface PaginatedResult<T> {
+  items: T[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
+export interface IUserRepository {
+  getAll(params?: ListParams): Promise<PaginatedResult<User>>;
+  getById(id: string): Promise<User>;
+  create(input: CreateUserInput): Promise<MutationResult<User>>;
+  update(id: string, input: UpdateUserInput): Promise<MutationResult<User>>;
   delete(id: string): Promise<MutationResult<void>>;
 }
 ```
@@ -290,18 +315,18 @@ export interface IReportRepository {
 ### Use Case Class (Application)
 
 ```typescript
-// application/use-cases/ReportUseCases.ts
-import type { IReportRepository } from "../../domain";
+// application/use-cases/UserUseCases.ts
+import type { IUserRepository, ListParams } from "../../domain";
 
-export class ReportUseCases {
-  private readonly repository: IReportRepository;
+export class UserUseCases {
+  private readonly repository: IUserRepository;
 
-  constructor(repository: IReportRepository) {
+  constructor(repository: IUserRepository) {
     this.repository = repository;
   }
 
-  async listReports() {
-    return this.repository.getAll();
+  async listUsers(params?: ListParams) {
+    return this.repository.getAll(params);
   }
   // ... other methods
 }
@@ -313,43 +338,56 @@ export class ReportUseCases {
 
 ```typescript
 // di/container.ts
-import { ReportApiRepository } from "../infrastructure";
-import { ReportUseCases } from "../application";
+import { UserApiRepository } from "../infrastructure";
+import { UserUseCases } from "../application";
 
-const reportRepository = new ReportApiRepository();
-export const reportUseCases = new ReportUseCases(reportRepository);
+const userRepository = new UserApiRepository();
+export const userUseCases = new UserUseCases(userRepository);
 ```
 
 ## API Integration Pattern
 
 ### Endpoint Constants
 
-Centralize all API paths in `infrastructure/endpoints/`:
+Centralize all API paths in `infrastructure/endpoints/`. All backend service endpoints are prefixed with the service name:
 
 ```typescript
-export const REPORT_ENDPOINTS = {
-  LIST: "/reports",
-  DETAIL: (id: string) => `/reports/${id}`,
-  CREATE: "/reports",
-  UPDATE: (id: string) => `/reports/${id}`,
-  DELETE: (id: string) => `/reports/${id}`,
+export const USER_ENDPOINTS = {
+  LIST: "/user-service/users",
+  ME: "/user-service/users/me",
+  DETAIL: (id: string) => `/user-service/users/${id}`,
+  CREATE: "/user-service/users",
+  UPDATE: (id: string) => `/user-service/users/${id}`,
+  DELETE: (id: string) => `/user-service/users/${id}`,
 } as const;
 ```
 
 ### Repository Implementation
 
+The backend returns paginated data as `{ data: [...], pagination: {...} }`. The repository maps this to the domain's `{ items: [...], meta: {...} }` format:
+
 ```typescript
 import { api, type ApiResponse } from "@rajkumarganesan93/uifunctions";
 
-export class ReportApiRepository implements IReportRepository {
-  async getAll(): Promise<Report[]> {
-    const res = await api.get<ApiResponse<Report[]>>(REPORT_ENDPOINTS.LIST);
-    return res.data.data;
-  }
+interface BackendPaginatedResponse<T> {
+  data: T[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+}
 
-  async create(input: CreateReportInput): Promise<MutationResult<Report>> {
-    const res = await api.post<ApiResponse<Report>>(REPORT_ENDPOINTS.CREATE, input);
-    return { data: res.data.data, message: res.data.message };
+export class UserApiRepository implements IUserRepository {
+  async getAll(params: ListParams = {}): Promise<PaginatedResult<User>> {
+    const { page = 1, limit = 10, sortBy, sortOrder, search } = params;
+    const queryParams: Record<string, string | number> = { page, limit };
+    if (sortBy) queryParams.sortBy = sortBy;
+    if (sortOrder) queryParams.sortOrder = sortOrder;
+    if (search) queryParams.search = search;
+
+    const res = await api.get<ApiResponse<BackendPaginatedResponse<User>>>(
+      USER_ENDPOINTS.LIST,
+      { params: queryParams },
+    );
+    const body = res.data.data;
+    return { items: body.data, meta: body.pagination };
   }
 }
 ```
@@ -363,23 +401,203 @@ export class ReportApiRepository implements IReportRepository {
 ### Presentation Hook
 
 ```typescript
-import { contactUseCases } from "../../di/container";
+import { useAuth } from "@rajkumarganesan93/auth";
+import { userUseCases } from "../../di/container";
 
-export function useContactMutation() {
+export function useUserList() {
   const { showToast } = useToast();
+  const { token } = useAuth();
+  const hasFetchedRef = useRef(false);
 
-  const createContact = async (data: CreateContactInput): Promise<boolean> => {
-    try {
-      const result = await contactUseCases.createContact(data);
-      showToast("success", result.message);  // Message from backend
-      return true;
-    } catch (err) {
-      showToast("error", (err as ApiError).message);  // Error from backend
-      return false;
+  const fetchUsers = useCallback(async () => {
+    // ... fetch logic calling userUseCases.listUsers(params)
+  }, [showToast]);
+
+  // Only fetch when auth token is available
+  useEffect(() => {
+    if (token && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
+      fetchUsers();
     }
-  };
+  }, [token, fetchUsers]);
 }
 ```
+
+> **Important:** Data-fetching hooks must check for the auth token before making API calls. This prevents 401 errors on page refresh when the Keycloak PKCE flow is still completing.
+
+## Authentication Architecture
+
+### Token Flow
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│  Page Load                                                         │
+│                                                                    │
+│  1. main.tsx module loads                                          │
+│     ├── configureClient({ baseURL: USER_SERVICE_URL })             │
+│     └── setAuthToken() is available but token is undefined         │
+│                                                                    │
+│  2. AuthProvider mounts → shows "Loading..."                       │
+│     └── kc.init({ onLoad: "login-required", pkceMethod: "S256" }) │
+│                                                                    │
+│  3. Keycloak resolves (from session or after redirect)             │
+│     ├── publishToken(kc) → onToken callback fires                 │
+│     │   └── handleToken(token) → setAuthToken(token) ← stored     │
+│     └── setInitialized(true) → children render                    │
+│                                                                    │
+│  4. AppWithRealtime renders                                        │
+│     ├── useEffect: setAuthToken(token) again (React state sync)   │
+│     └── useEffect: setTokenRefresher(keycloak.getToken)           │
+│                                                                    │
+│  5. UserManagement mounts                                          │
+│     └── useUserList checks: if (token) → fetchUsers()              │
+│         └── Request interceptor injects: Authorization: Bearer ... │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+### Three-Layer Token Guarantee
+
+1. **`setAuthToken(token)`** — Stores the token directly in the axiosClient module (no closures). A request interceptor reads this before every API call.
+2. **`setTokenRefresher(fn)`** — Registers an async function for the 401 retry interceptor. If a request gets a 401, the interceptor calls this to refresh the token and retries the request once.
+3. **Auth-aware hooks** — `useUserList` reads `useAuth().token` and only fires the initial fetch when the token is available. Prevents API calls before auth completes.
+
+### Token Refresh Timeline
+
+```
+Access Token (5 min lifespan)
+├── Proactive refresh: every 30s, refreshes if < 70s remaining
+├── onTokenExpired event: immediate refresh attempt (safety net)
+├── 401 retry interceptor: last-resort — refresh + retry failed request
+│
+Refresh Token (30 min idle / 10 hr max)
+└── On failure → redirect to Keycloak login
+```
+
+### API Client Functions
+
+| Function | Purpose | Called from |
+|---|---|---|
+| `configureClient({ baseURL, timeout })` | Set base URL for API calls | `main.tsx` (module level) |
+| `setAuthToken(token)` | Store current JWT token | `main.tsx` (`handleToken` + `useEffect`) |
+| `setTokenRefresher(fn)` | Register async token refresh function | `main.tsx` (`useEffect`) |
+
+## Real-Time Data Sync
+
+The platform uses **Socket.IO** for real-time data synchronization. When one user modifies data, all other users viewing the same data see changes instantly without a page refresh.
+
+### Architecture
+
+```
+RealtimeProvider (wraps the app, provides token + default URL)
+  └── useRealtimeSync (per list/detail hook)
+        ├── Connects to backend Socket.IO server (JWT auth on handshake)
+        ├── Subscribes to room: entity:{tableName} or entity:{tableName}:{id}
+        ├── Listens for "data-changed" event
+        └── Calls onEvent callback → refetch() + showToast()
+```
+
+### Backend Contract
+
+Backend services emit a single `data-changed` event through Socket.IO with a `DomainEvent` payload:
+
+```typescript
+interface DomainEvent {
+  entity: string;        // e.g. "users", "contacts"
+  action: 'created' | 'updated' | 'deleted';
+  entityId: string;
+  data?: Record<string, unknown>;
+  actor: string;
+  tenantId?: string;
+  timestamp: string;
+}
+```
+
+Room patterns:
+- `entity:{tableName}` -- list pages (e.g. `entity:users`)
+- `entity:{tableName}:{id}` -- detail pages (e.g. `entity:users:abc-123`)
+- `tenant:{tenantId}` -- all events for a tenant
+
+Clients subscribe/unsubscribe via: `socket.emit('subscribe', { room })` / `socket.emit('unsubscribe', { room })`
+
+### Provider Setup
+
+Both apps wrap their component tree with `RealtimeProvider` in `main.tsx`:
+
+```tsx
+import { RealtimeProvider } from "@rajkumarganesan93/uifunctions";
+
+function AppWithRealtime() {
+  const { token } = useAuth();
+  return (
+    <RealtimeProvider
+      getToken={() => token}
+      defaultServiceUrl={import.meta.env.VITE_USER_SERVICE_URL}
+    >
+      <App />
+    </RealtimeProvider>
+  );
+}
+```
+
+Until `AuthProvider` is wired, `getToken` returns `undefined` and no socket connections are established.
+
+### Using useRealtimeSync in a List Hook
+
+```typescript
+import { useRealtimeSync } from "@rajkumarganesan93/uifunctions";
+import type { DomainEvent } from "@rajkumarganesan93/uifunctions";
+
+export function useUserList() {
+  const { showToast } = useToast();
+
+  const fetchUsers = useCallback(async () => {
+    // ... fetch logic
+  }, []);
+
+  const handleRealtimeEvent = useCallback(
+    (event: DomainEvent) => {
+      fetchUsers();
+      showToast("info", `A user was ${event.action} by another user`);
+    },
+    [fetchUsers, showToast],
+  );
+
+  const { connected } = useRealtimeSync({
+    entity: "users",
+    serviceUrl: import.meta.env.VITE_USER_SERVICE_URL,
+    onEvent: handleRealtimeEvent,
+  });
+
+  return { users, loading, refetch: fetchUsers, connected };
+}
+```
+
+### Using useRealtimeSync for a Detail Page
+
+```typescript
+const { connected } = useRealtimeSync({
+  entity: "users",
+  entityId: id,                      // subscribes to entity:users:{id}
+  onEvent: (event) => refetchUser(),
+});
+```
+
+### Hook Options
+
+| Option | Type | Required | Description |
+|---|---|---|---|
+| `entity` | `string` | Yes | Entity/table name (e.g. `"users"`) |
+| `entityId` | `string` | No | Specific entity ID for detail views |
+| `onEvent` | `(event: DomainEvent) => void` | Yes | Callback when a relevant event arrives |
+| `serviceUrl` | `string` | No | Override the default service URL |
+| `enabled` | `boolean` | No | Toggle sync on/off (default: `true`) |
+
+### Connection Management
+
+- `RealtimeProvider` shares socket connections per service URL across all hooks
+- Auto-reconnects on disconnection (exponential backoff up to 10s)
+- Cleans up all connections when the provider unmounts
+- JWT token is sent via `auth: { token }` on the WebSocket handshake
 
 ## Styling Guidelines
 
@@ -418,11 +636,11 @@ The base `tsconfig.base.json` enables:
 
 ```typescript
 // Use `import type` for type-only imports
-import type { Contact, CreateContactInput } from "../../domain";
-import type { IContactRepository, MutationResult } from "../../domain";
+import type { User, CreateUserInput } from "../../domain";
+import type { IUserRepository, MutationResult } from "../../domain";
 
 // Regular imports for values
-import { ContactApiRepository } from "../infrastructure";
+import { UserApiRepository } from "../infrastructure";
 ```
 
 ### Class Pattern
@@ -451,13 +669,21 @@ The admin app is fully wired to the real user-service backend with Keycloak PKCE
 ### How It Works
 
 ```
-Browser → Keycloak login (PKCE) → JWT token
-  ├── configureClient({ baseURL: USER_SERVICE_URL, headers: { Authorization: Bearer <token> } })
-  ├── RealtimeProvider({ getToken: () => token, defaultServiceUrl: USER_SERVICE_URL })
+Browser → Keycloak login (PKCE) → JWT access token
+  ├── setAuthToken(token)  →  stored in axiosClient module
+  │   └── Request interceptor injects Authorization header on every API call
+  ├── RealtimeProvider({ getToken, defaultServiceUrl })
+  │   └── Socket.IO connection authenticated with JWT
   └── App renders with authenticated API calls + real-time sync
 ```
 
-The `AuthProvider` wraps the entire app in `main.tsx`. On successful Keycloak login, the `onToken` callback configures the API client with the user-service URL and Bearer token. A small `AppWithRealtime` wrapper component reads the token from `useAuth()` and passes it to `RealtimeProvider`.
+The `AuthProvider` wraps the entire app in `main.tsx`. On successful Keycloak login:
+
+1. `onToken(token)` callback fires → `setAuthToken(token)` stores the token in the axios module
+2. `AuthProvider` sets `initialized=true` → children render
+3. `AppWithRealtime` syncs the token to `setAuthToken()` via `useEffect` (covers React state updates)
+4. `AppWithRealtime` registers `setTokenRefresher()` for 401 retry
+5. `useUserList` checks `useAuth().token` before making API calls
 
 ### Running the Full Stack
 
@@ -488,7 +714,7 @@ Or update `keycloak/cargoez-realm.json` in the backend repo and re-import.
 
 ### Testing Real-Time Sync
 
-1. Open the admin app in **two browser tabs** (or one tab + Swagger UI at http://localhost:3001/api-docs)
+1. Open the admin app in **two browser tabs** (or one tab + Swagger UI at http://localhost:3001/user-service/api-docs)
 2. Create a user from Swagger UI or the second tab
 3. The first tab should show the new user instantly (no page refresh) + a Toast notification
 4. The "Live" indicator next to "User Management" shows the Socket.IO connection status
@@ -499,34 +725,34 @@ Or update `keycloak/cargoez-realm.json` in the backend repo and re-import.
 apps/admin/src/
 ├── domain/
 │   ├── entities/
-│   │   ├── User.ts              # { id, name, email, isActive, createdAt, modifiedAt }
+│   │   ├── User.ts              # { id, name, email, phone?, createdAt, modifiedAt, createdBy?, modifiedBy?, tenantId? }
 │   │   └── SystemSettings.ts
 │   └── repositories/
-│       ├── IUserRepository.ts   # PaginatedResult<User>, CRUD + delete
+│       ├── IUserRepository.ts   # PaginatedResult<User>, ListParams (search, sort), CRUD + delete
 │       └── ISettingsRepository.ts
 ├── application/
 │   └── use-cases/
-│       ├── UserUseCases.ts      # listUsers(page, limit), createUser, updateUser, deleteUser
+│       ├── UserUseCases.ts      # listUsers(ListParams), createUser, updateUser, deleteUser
 │       └── SettingsUseCases.ts
 ├── infrastructure/
 │   ├── endpoints/
-│   │   └── adminEndpoints.ts    # USER_ENDPOINTS: /users, SETTINGS_ENDPOINTS
+│   │   └── adminEndpoints.ts    # USER_ENDPOINTS: /user-service/users, /user-service/users/me
 │   └── repositories/
-│       ├── UserApiRepository.ts # Handles ApiResponse<PaginatedData<User>>
+│       ├── UserApiRepository.ts # Maps backend { data.data[], data.pagination } → { items[], meta }
 │       └── SettingsApiRepository.ts
 ├── presentation/
 │   ├── hooks/
-│   │   └── useAdmin.ts          # useUserList (paginated + realtime), useUserMutation, useSystemSettings
+│   │   └── useAdmin.ts          # useUserList (auth-aware, paginated, searchable, realtime), useUserMutation, useSystemSettings
 │   ├── layouts/
 │   │   └── AdminLayout.tsx      # Sidebar nav, auth username + logout
 │   └── pages/
 │       ├── AdminDashboard.tsx
-│       ├── UserManagement.tsx   # Full CRUD, pagination, search, realtime indicator
+│       ├── UserManagement.tsx   # Full CRUD, pagination, server-side search, phone field, realtime indicator
 │       └── SystemSettings.tsx
 ├── di/
 │   └── container.ts             # Wires UserApiRepository → UserUseCases
 ├── App.tsx
-└── main.tsx                     # AuthProvider → AppWithRealtime → RealtimeProvider → App
+└── main.tsx                     # AuthProvider → setAuthToken → AppWithRealtime → RealtimeProvider → App
 ```
 
 ### Environment Variables (Admin)
@@ -573,6 +799,7 @@ npx tsc --noEmit -p apps/admin/tsconfig.json
 npm run test:all
 
 # 3. Build packages
+npm run build -w packages/auth
 npm run build -w packages/uifunctions
 npm run build -w packages/uicontrols
 
@@ -582,135 +809,6 @@ npm run build -w apps/admin
 
 # 5. Ensure no .env or .npmrc in staged files
 git diff --cached --name-only | findstr ".env .npmrc"
-```
-
-## Real-Time Data Sync
-
-The platform uses **Socket.IO** for real-time data synchronization. When one user modifies data, all other users viewing the same data see changes instantly without a page refresh.
-
-### Architecture
-
-```
-RealtimeProvider (wraps the app, provides token + default URL)
-  └── useRealtimeSync (per list/detail hook)
-        ├── Connects to backend Socket.IO server
-        ├── Subscribes to room: entity:{tableName} or entity:{tableName}:{id}
-        ├── Listens for entity.created, entity.updated, entity.deleted
-        └── Calls onEvent callback → refetch() + showToast()
-```
-
-### Backend Contract
-
-Backend services emit `DomainEvent` objects through Socket.IO:
-
-```typescript
-interface DomainEvent {
-  entity: string;        // e.g. "contacts", "freight"
-  action: 'created' | 'updated' | 'deleted';
-  entityId: string;
-  data?: Record<string, unknown>;
-  actor: string;
-  tenantId?: string;
-  timestamp: string;
-}
-```
-
-Room patterns:
-- `entity:{tableName}` -- list pages (e.g. `entity:contacts`)
-- `entity:{tableName}:{id}` -- detail pages (e.g. `entity:contacts:abc-123`)
-
-Clients subscribe/unsubscribe via: `socket.emit('subscribe', { room })` / `socket.emit('unsubscribe', { room })`
-
-### Provider Setup
-
-Both apps wrap their component tree with `RealtimeProvider` in `main.tsx`:
-
-```tsx
-import { RealtimeProvider } from "@rajkumarganesan93/uifunctions";
-
-// When AuthProvider is wired in:
-function AppProviders({ children }: { children: React.ReactNode }) {
-  const { token } = useAuth();
-  return (
-    <RealtimeProvider
-      getToken={() => token}
-      defaultServiceUrl={import.meta.env.VITE_API_BASE_URL}
-    >
-      {children}
-    </RealtimeProvider>
-  );
-}
-```
-
-Until `AuthProvider` is wired, `getToken` returns `undefined` and no socket connections are established.
-
-### Using useRealtimeSync in a List Hook
-
-```typescript
-import { useRealtimeSync } from "@rajkumarganesan93/uifunctions";
-import type { DomainEvent } from "@rajkumarganesan93/uifunctions";
-
-export function useContactList() {
-  const { showToast } = useToast();
-
-  const fetchContacts = useCallback(async () => {
-    // ... fetch logic
-  }, []);
-
-  const handleRealtimeEvent = useCallback(
-    (event: DomainEvent) => {
-      fetchContacts();
-      showToast("info", `A contact was ${event.action} by another user`);
-    },
-    [fetchContacts, showToast],
-  );
-
-  const { connected } = useRealtimeSync({
-    entity: "contacts",
-    onEvent: handleRealtimeEvent,
-  });
-
-  return { contacts, loading, refetch: fetchContacts, connected };
-}
-```
-
-### Using useRealtimeSync for a Detail Page
-
-```typescript
-const { connected } = useRealtimeSync({
-  entity: "contacts",
-  entityId: id,                      // subscribes to entity:contacts:{id}
-  onEvent: (event) => refetchContact(),
-});
-```
-
-### Hook Options
-
-| Option | Type | Required | Description |
-|---|---|---|---|
-| `entity` | `string` | Yes | Entity/table name (e.g. `"contacts"`) |
-| `entityId` | `string` | No | Specific entity ID for detail views |
-| `onEvent` | `(event: DomainEvent) => void` | Yes | Callback when a relevant event arrives |
-| `serviceUrl` | `string` | No | Override the default service URL |
-| `enabled` | `boolean` | No | Toggle sync on/off (default: `true`) |
-
-### Connection Management
-
-- `RealtimeProvider` shares socket connections per service URL across all hooks
-- Auto-reconnects on disconnection (exponential backoff up to 10s)
-- Cleans up all connections when the provider unmounts
-- JWT token is sent via `auth: { token }` on the WebSocket handshake
-
-### Environment Variables
-
-The default service URL comes from `VITE_API_BASE_URL`. If backend services run on different ports, override via the `serviceUrl` option:
-
-```typescript
-useRealtimeSync({
-  entity: "users",
-  serviceUrl: "http://localhost:3001",
-  onEvent: handleEvent,
-});
 ```
 
 ## Troubleshooting
@@ -738,12 +836,14 @@ Rebuild the `uicontrols` package first:
 npm run build -w packages/uicontrols
 ```
 
-### API calls failing
+### API calls returning 401 on page refresh
 
-1. Check that `VITE_API_BASE_URL` is set in `.env`
-2. Verify the backend services are running
-3. Check the browser console for CORS errors
-4. The app falls back to sample data when the API is unreachable -- this is by design for development
+The Keycloak PKCE flow may not have completed before the API call fires. Ensure:
+
+1. Data-fetching hooks check `useAuth().token` before calling the API
+2. `setAuthToken(token)` is called in both `onToken` callback and `useEffect`
+3. `setTokenRefresher()` is registered for 401 retry
+4. The `AuthProvider` calls `publishToken(kc)` BEFORE `setInitialized(true)`
 
 ### Keycloak login — "Invalid parameter: redirect_uri"
 
@@ -764,6 +864,10 @@ The `AuthProvider` uses `onLoad: "login-required"`. If Keycloak is not running o
 
 1. Verify the backend service has Socket.IO enabled on the same HTTP server
 2. Check that `getToken()` returns a valid JWT (requires `AuthProvider` to be wired)
-3. Look for `[RealtimeSync] Connection error` warnings in the browser console
+3. Look for connection error warnings in the browser console
 4. Ensure CORS allows WebSocket connections from your frontend origin
 5. If using the API gateway URL, verify it proxies WebSocket upgrade requests
+
+### Backend returns "password authentication failed for user postgres"
+
+This is a backend database configuration issue. Check the backend's `.env` file and ensure `DB_PASSWORD` matches your PostgreSQL installation password. Restart the user-service after fixing.

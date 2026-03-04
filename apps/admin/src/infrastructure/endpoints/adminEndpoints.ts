@@ -1,9 +1,10 @@
 export const USER_ENDPOINTS = {
-  LIST: "/users",
-  DETAIL: (id: string) => `/users/${id}`,
-  CREATE: "/users",
-  UPDATE: (id: string) => `/users/${id}`,
-  DELETE: (id: string) => `/users/${id}`,
+  LIST: "/user-service/users",
+  ME: "/user-service/users/me",
+  DETAIL: (id: string) => `/user-service/users/${id}`,
+  CREATE: "/user-service/users",
+  UPDATE: (id: string) => `/user-service/users/${id}`,
+  DELETE: (id: string) => `/user-service/users/${id}`,
 } as const;
 
 export const SETTINGS_ENDPOINTS = {
