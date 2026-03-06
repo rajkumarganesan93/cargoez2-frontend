@@ -1,5 +1,4 @@
 @import "tailwindcss";
-
 @source "../../../packages/uicontrols/src";
 
 @theme {
@@ -46,12 +45,6 @@
   --color-text-secondary: #555555;
   --color-text-disabled: #999999;
 
-  --color-divider: #000000;
-
-  --color-action-hover: #e6f2fa;
-  --color-action-focus: #cce6f5;
-  --color-action-disabled: #f0f0f0;
-
   --color-grey-100: #f5f5f5;
   --color-grey-200: #eeeeee;
   --color-grey-300: #e0e0e0;
@@ -62,8 +55,9 @@
   --color-grey-800: #424242;
   --color-grey-900: #212121;
 
-  --shadow-light: 0px 1px 3px rgba(0,0,0,0.12);
-  --shadow-dark: 0px 1px 3px rgba(0,0,0,0.24);
+  --color-action-hover: #e6f2fa;
+  --color-action-focus: #cce6f5;
+  --color-action-disabled: #f0f0f0;
 
   --font-family-base: Montserrat, Arial, sans-serif;
 }

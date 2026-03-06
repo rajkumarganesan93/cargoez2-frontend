@@ -3,18 +3,18 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import federation from "@originjs/vite-plugin-federation";
 
-const REMOTE_BASE = process.env.VITE_REMOTE_BASE ?? "http://localhost";
-
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
     federation({
-      name: "cargoez",
-      remotes: {
-        contacts: `${REMOTE_BASE}:5174/remoteEntry.js`,
-        freight: `${REMOTE_BASE}:5175/remoteEntry.js`,
-        books: `${REMOTE_BASE}:5176/remoteEntry.js`,
+      name: "contacts",
+      filename: "remoteEntry.js",
+      exposes: {
+        "./ContactsList": "./src/presentation/pages/ContactsList",
+        "./ContactDetail": "./src/presentation/pages/ContactDetail",
+        "./ContactForm": "./src/presentation/pages/ContactForm",
+        "./nav": "./src/nav",
       },
       shared: [
         "react",
@@ -26,7 +26,7 @@ export default defineConfig({
     }),
   ],
   server: {
-    port: 5173,
+    port: 5174,
     cors: true,
   },
   build: {

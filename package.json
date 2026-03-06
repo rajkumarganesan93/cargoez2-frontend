@@ -9,9 +9,16 @@
   "scripts": {
     "dev:cargoez": "npm run dev -w apps/cargoez",
     "dev:admin": "npm run dev -w apps/admin",
+    "dev:contacts": "npm run dev -w modules/contacts",
+    "dev:freight": "npm run dev -w modules/freight",
+    "dev:books": "npm run dev -w modules/books",
+    "dev:all": "concurrently -n cargoez,contacts,freight,books,admin -c blue,green,yellow,magenta,cyan \"npm run dev -w apps/cargoez\" \"npm run dev -w modules/contacts\" \"npm run dev -w modules/freight\" \"npm run dev -w modules/books\" \"npm run dev -w apps/admin\"",
     "build:all": "npm run build --ws --if-present",
     "test:all": "npm run test --ws --if-present",
     "lint:all": "npm run lint --ws --if-present",
     "storybook": "npm run storybook -w packages/uicontrols"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }

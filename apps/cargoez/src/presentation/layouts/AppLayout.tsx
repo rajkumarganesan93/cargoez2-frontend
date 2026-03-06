@@ -1,15 +1,12 @@
 import { useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@rajkumarganesan93/uicontrols";
-import { ContactsNavItem } from "@rajkumarganesan93/contacts";
-import { FreightNavItem } from "@rajkumarganesan93/freight";
-import { BooksNavItem } from "@rajkumarganesan93/books";
 
 const navItems = [
   { label: "Dashboard", path: "/dashboard", icon: "grid" },
-  { label: ContactsNavItem.label, path: ContactsNavItem.path, icon: ContactsNavItem.icon },
-  { label: FreightNavItem.label, path: FreightNavItem.path, icon: FreightNavItem.icon },
-  { label: BooksNavItem.label, path: BooksNavItem.path, icon: BooksNavItem.icon },
+  { label: "Contacts", path: "/contacts", icon: "users" },
+  { label: "Freight", path: "/freight", icon: "truck" },
+  { label: "Books", path: "/books", icon: "book" },
   { label: "UI Demo", path: "/ui-demo", icon: "palette" },
 ];
 
