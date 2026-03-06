@@ -12,20 +12,24 @@ export default defineConfig({
     federation({
       name: "cargoez",
       remotes: {
-        contacts: `${REMOTE_BASE}:5174/remoteEntry.js`,
-        freight: `${REMOTE_BASE}:5175/remoteEntry.js`,
-        books: `${REMOTE_BASE}:5176/remoteEntry.js`,
+        contacts: `${REMOTE_BASE}:5174/assets/remoteEntry.js`,
+        freight: `${REMOTE_BASE}:5175/assets/remoteEntry.js`,
+        books: `${REMOTE_BASE}:5176/assets/remoteEntry.js`,
       },
-      shared: [
-        "react",
-        "react-dom",
-        "react-router-dom",
-        "@rajkumarganesan93/uicontrols",
-        "@rajkumarganesan93/uifunctions",
-      ],
+      shared: {
+        react: { singleton: true, requiredVersion: "^19.0.0" },
+        "react-dom": { singleton: true, requiredVersion: "^19.0.0" },
+        "react-router-dom": { singleton: true, requiredVersion: "^7.0.0" },
+        "@rajkumarganesan93/uicontrols": { singleton: true, requiredVersion: "*" },
+        "@rajkumarganesan93/uifunctions": { singleton: true, requiredVersion: "*" },
+      },
     }),
   ],
   server: {
+    port: 5173,
+    cors: true,
+  },
+  preview: {
     port: 5173,
     cors: true,
   },

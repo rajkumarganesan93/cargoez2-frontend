@@ -51,14 +51,23 @@ npm run dev:admin
 ### Day-to-Day Development
 
 ```bash
-# Start the app you're working on
-npm run dev:cargoez        # port 5173
-npm run dev:admin          # port 5174
+# Start everything (shell + all remotes + admin)
+npm run dev:all
+
+# Or start individually
+npm run dev:cargoez        # Shell (port 5173)
+npm run dev:contacts       # Contacts remote (port 5174)
+npm run dev:freight        # Freight remote (port 5175)
+npm run dev:books          # Books remote (port 5176)
+npm run dev:admin          # Admin panel (port 5177)
 
 # If you changed auth, uicontrols, or uifunctions, rebuild them
 npm run build -w packages/auth
 npm run build -w packages/uicontrols
 npm run build -w packages/uifunctions
+
+# After rebuilding a shared package, restart affected apps
+# (all federated apps use built output, not source)
 
 # Run Storybook while developing UI components
 npm run storybook          # port 6006
@@ -98,7 +107,7 @@ Apps → Modules → Packages → External
 
 ## Adding a New Micro-Frontend Module
 
-To add a new feature module (e.g., `reports`):
+To add a new feature module (e.g., `reports`) as a federated remote:
 
 ### 1. Create the module scaffold
 
@@ -106,36 +115,36 @@ To add a new feature module (e.g., `reports`):
 modules/reports/
 ├── package.json
 ├── tsconfig.json
+├── vite.config.ts           # Federation config (exposes, shared)
+├── index.html               # Standalone entry
 └── src/
+    ├── main.tsx              # Standalone React mount
+    ├── App.tsx               # Standalone routing
+    ├── index.css             # Tailwind imports
+    ├── nav.ts                # Navigation item config
+    ├── index.ts              # Public module API
     ├── domain/
     │   ├── entities/
     │   │   └── Report.ts
-    │   ├── repositories/
-    │   │   └── IReportRepository.ts
-    │   └── index.ts
+    │   └── repositories/
+    │       └── IReportRepository.ts
     ├── application/
-    │   ├── use-cases/
-    │   │   └── ReportUseCases.ts
-    │   └── index.ts
+    │   └── use-cases/
+    │       └── ReportUseCases.ts
     ├── infrastructure/
     │   ├── endpoints/
     │   │   └── reportEndpoints.ts
-    │   ├── repositories/
-    │   │   └── ReportApiRepository.ts
-    │   └── index.ts
+    │   └── repositories/
+    │       └── ReportApiRepository.ts
     ├── presentation/
     │   ├── hooks/
     │   │   └── useReports.ts
-    │   ├── pages/
-    │   │   ├── ReportsList.tsx
-    │   │   ├── ReportForm.tsx
-    │   │   └── ReportDetail.tsx
-    │   └── index.ts
-    ├── di/
-    │   └── container.ts
-    ├── routes.tsx
-    ├── nav.ts
-    └── index.ts
+    │   └── pages/
+    │       ├── ReportsList.tsx
+    │       ├── ReportForm.tsx
+    │       └── ReportDetail.tsx
+    └── di/
+        └── container.ts
 ```
 
 ### 2. Create `package.json`
@@ -152,55 +161,122 @@ modules/reports/
     "@rajkumarganesan93/uicontrols": "*",
     "@rajkumarganesan93/uifunctions": "*"
   },
+  "scripts": {
+    "dev": "vite build && vite preview --port 5178",
+    "build": "vite build",
+    "preview": "vite preview --port 5178"
+  },
   "peerDependencies": {
     "react": ">=18.0.0",
     "react-dom": ">=18.0.0",
     "react-router-dom": ">=6.0.0"
+  },
+  "devDependencies": {
+    "@originjs/vite-plugin-federation": "^1.4.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.1",
+    "@tailwindcss/vite": "^4.2.1",
+    "@vitejs/plugin-react": "^5.1.4",
+    "tailwindcss": "^4.2.1",
+    "vite": "^7.3.1"
   }
 }
 ```
 
-### 3. Create `tsconfig.json`
+### 3. Create `vite.config.ts`
+
+```ts
+import path from "path";
+import { fileURLToPath } from "url";
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import federation from "@originjs/vite-plugin-federation";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+export default defineConfig({
+  root: __dirname,
+  plugins: [
+    react(),
+    tailwindcss(),
+    federation({
+      name: "reports",
+      filename: "remoteEntry.js",
+      exposes: {
+        "./ReportsList": "./src/presentation/pages/ReportsList",
+        "./ReportDetail": "./src/presentation/pages/ReportDetail",
+        "./ReportForm": "./src/presentation/pages/ReportForm",
+        "./nav": "./src/nav",
+      },
+      shared: {
+        react: { singleton: true, requiredVersion: "^19.0.0" },
+        "react-dom": { singleton: true, requiredVersion: "^19.0.0" },
+        "react-router-dom": { singleton: true, requiredVersion: "^7.0.0" },
+        "@rajkumarganesan93/uicontrols": { singleton: true, requiredVersion: "*" },
+        "@rajkumarganesan93/uifunctions": { singleton: true, requiredVersion: "*" },
+      },
+    }),
+  ],
+  server: { port: 5178, cors: true },
+  preview: { port: 5178, cors: true },
+  build: { target: "esnext", minify: false, cssCodeSplit: false },
+});
+```
+
+### 4. Create `tsconfig.json`
 
 ```json
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src"]
+  "include": ["src", "*.ts", "../../types/**/*.d.ts"]
 }
 ```
 
-### 4. Export routes and nav from `index.ts`
+### 5. Register in the shell
 
-```typescript
-export { reportsRoutes } from "./routes";
-export { ReportsNavItem } from "./nav";
+**`apps/cargoez/vite.config.ts`** -- add the remote URL:
+```ts
+remotes: {
+  // ...existing remotes...
+  reports: `${REMOTE_BASE}:5178/assets/remoteEntry.js`,
+}
 ```
 
-### 5. Register in the shell app
-
-In `apps/cargoez/src/App.tsx`, import the routes:
-
-```typescript
-import { reportsRoutes } from "@rajkumarganesan93/reports";
-const allRoutes = [...contactsRoutes, ...freightRoutes, ...booksRoutes, ...reportsRoutes];
+**`apps/cargoez/src/vite-env.d.ts`** -- add type declarations:
+```ts
+declare module "reports/ReportsList" {
+  import type { ComponentType } from "react";
+  const Component: ComponentType;
+  export default Component;
+}
+// ...repeat for ReportDetail, ReportForm
 ```
 
-In `apps/cargoez/src/presentation/layouts/AppLayout.tsx`, add the nav item:
-
-```typescript
-import { ReportsNavItem } from "@rajkumarganesan93/reports";
+**`apps/cargoez/src/App.tsx`** -- add lazy imports and routes:
+```tsx
+const ReportsList = lazy(() => import("reports/ReportsList"));
+// Add to federatedRoutes array
+{ path: "reports", element: ReportsList, service: "Reports" },
 ```
 
-In `apps/cargoez/src/index.css`, add the `@source` directive:
-
+**`apps/cargoez/src/index.css`** -- add Tailwind source scanning:
 ```css
 @source "../../../modules/reports/src";
 ```
 
-### 6. Install dependencies
+### 6. Add root scripts and Keycloak config
+
+Add `dev:reports` to root `package.json` scripts and update `dev:all`.
+
+Add `http://localhost:5178/*` to the Keycloak `cargoez-web` client's redirect URIs.
+
+### 7. Install and run
 
 ```bash
 npm install
+npm run dev:reports    # Build + serve on port 5178
 ```
 
 ## Adding a New UI Component
@@ -690,7 +766,7 @@ The `AuthProvider` wraps the entire app in `main.tsx`. On successful Keycloak lo
 **Prerequisites:**
 1. Keycloak running on port 8080 with the `cargoez` realm imported
 2. User-service running on port 3001 (from the backend repo)
-3. The `cargoez-web` Keycloak client must include `http://localhost:5174/*` in its redirect URIs
+3. The `cargoez-web` Keycloak client must include `http://localhost:5177/*` in its redirect URIs
 
 **Start the admin app:**
 
@@ -698,16 +774,16 @@ The `AuthProvider` wraps the entire app in `main.tsx`. On successful Keycloak lo
 npm run dev:admin
 ```
 
-Open http://localhost:5174 — you'll be redirected to Keycloak login. Use `admin`/`admin123`.
+Open http://localhost:5177 — you'll be redirected to Keycloak login. Use `admin`/`admin123`.
 
 ### Keycloak Client Configuration
 
-If you get an "Invalid parameter: redirect_uri" error, the `cargoez-web` client in Keycloak is missing port 5174. Add it via:
+If you get an "Invalid parameter: redirect_uri" error, the `cargoez-web` client in Keycloak is missing the app's port. Add it via:
 
 1. Keycloak Admin Console (http://localhost:8080/admin)
 2. Select `cargoez` realm → Clients → `cargoez-web`
-3. Add `http://localhost:5174/*` to Valid Redirect URIs
-4. Add `http://localhost:5174` to Web Origins
+3. Add `http://localhost:5177/*` to Valid Redirect URIs (and any other ports: 5173-5176)
+4. Add `http://localhost:5177` to Web Origins (and any other ports)
 5. Save
 
 Or update `keycloak/cargoez-realm.json` in the backend repo and re-import.
@@ -847,7 +923,7 @@ The Keycloak PKCE flow may not have completed before the API call fires. Ensure:
 
 ### Keycloak login — "Invalid parameter: redirect_uri"
 
-The `cargoez-web` client in Keycloak doesn't include the app's port in its allowed redirect URIs. Add `http://localhost:5174/*` (for admin) via the Keycloak admin console or update the realm JSON. See [Admin App — Backend Integration](#admin-app--backend-integration).
+The `cargoez-web` client in Keycloak doesn't include the app's port in its allowed redirect URIs. Add the port (e.g., `http://localhost:5177/*` for admin, or ports 5173-5176 for federated apps) via the Keycloak admin console or update the realm JSON. See [Admin App — Backend Integration](#admin-app--backend-integration).
 
 ### Keycloak login — "Invalid user credentials"
 

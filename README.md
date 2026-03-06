@@ -27,7 +27,7 @@ Micro-frontend monorepo for the CargoEz logistics platform, built with **React 1
 │                   Applications                       │
 │  ┌──────────────────┐   ┌────────────────────────┐  │
 │  │   CargoEz App    │   │     Admin Panel         │  │
-│  │   (port 5173)    │   │     (port 5174)         │  │
+│  │   (port 5173)    │   │     (port 5177)         │  │
 │  └────────┬─────────┘   └────────┬───────────────┘  │
 │           │                      │                   │
 │  ┌────────┴──────────────────────┴───────────────┐  │
@@ -120,15 +120,24 @@ cp apps/admin/.env.example apps/admin/.env
 ### 6. Start development servers
 
 ```bash
-# Main application
-npm run dev:cargoez
+# All apps (shell + remotes + admin) in one command
+npm run dev:all
 
-# Admin panel (in a separate terminal)
-npm run dev:admin
+# Or individually:
+npm run dev:cargoez    # Shell (port 5173)
+npm run dev:contacts   # Contacts remote (port 5174)
+npm run dev:freight    # Freight remote (port 5175)
+npm run dev:books      # Books remote (port 5176)
+npm run dev:admin      # Admin panel (port 5177)
 ```
 
-- **CargoEz App**: http://localhost:5173
-- **Admin Panel**: http://localhost:5174
+- **CargoEz Shell**: http://localhost:5173
+- **Contacts**: http://localhost:5174
+- **Freight**: http://localhost:5175
+- **Books**: http://localhost:5176
+- **Admin Panel**: http://localhost:5177
+
+See [MICROFRONTEND.md](MICROFRONTEND.md) for the full Module Federation architecture documentation.
 
 ## Available Scripts
 
@@ -136,8 +145,12 @@ Run from the repository root:
 
 | Command | Description |
 |---|---|
-| `npm run dev:cargoez` | Start CargoEz app dev server (port 5173) |
-| `npm run dev:admin` | Start Admin panel dev server (port 5174) |
+| `npm run dev:all` | Start all apps (shell + 3 remotes + admin) in parallel |
+| `npm run dev:cargoez` | Build and serve CargoEz shell (port 5173) |
+| `npm run dev:contacts` | Build and serve Contacts remote (port 5174) |
+| `npm run dev:freight` | Build and serve Freight remote (port 5175) |
+| `npm run dev:books` | Build and serve Books remote (port 5176) |
+| `npm run dev:admin` | Start Admin panel dev server (port 5177) |
 | `npm run build:all` | Build all workspaces |
 | `npm run test:all` | Run tests in all workspaces |
 | `npm run lint:all` | Lint all workspaces |
@@ -155,13 +168,14 @@ npm run dev -w apps/cargoez
 
 ### CargoEz App (`apps/cargoez`)
 
-The main web application that serves as the **shell** for all micro-frontend modules. It dynamically loads and composes the Contacts, Freight, and Books modules via lazy-loaded routes.
+The main web application that serves as the **host** for all micro-frontend modules. Uses **Vite Module Federation** (`@originjs/vite-plugin-federation`) to dynamically load Contacts, Freight, and Books from their own ports at runtime.
 
 **Key features:**
 - Sidebar navigation with module integration
 - Dashboard with stats and quick actions
 - UI Demo page showcasing all shared components
-- Route-based micro-frontend composition
+- Module Federation host -- loads remote components on demand
+- `ServiceErrorBoundary` -- graceful fallback when a remote is unavailable
 
 ### Admin Panel (`apps/admin`)
 
@@ -177,17 +191,21 @@ Standalone administration application with its own Clean Architecture structure.
 
 ## Micro-Frontend Modules
 
-Each module is a self-contained feature package that follows Clean Architecture. Modules export their route definitions and navigation configuration, which the shell app consumes.
+Each module is a self-contained micro-frontend that follows Clean Architecture. Using **Module Federation**, each module runs as an independent application on its own port, exposing page components that the shell loads at runtime.
 
-| Module | Package Name | Description |
-|---|---|---|
-| Contacts | `@rajkumarganesan93/contacts` | Contact management (CRUD) |
-| Freight | `@rajkumarganesan93/freight` | Shipment tracking and management |
-| Books | `@rajkumarganesan93/books` | Booking ledger and invoicing |
+| Module | Package Name | Port | Description |
+|---|---|---|---|
+| Contacts | `@rajkumarganesan93/contacts` | 5174 | Contact management (CRUD) |
+| Freight | `@rajkumarganesan93/freight` | 5175 | Shipment tracking and management |
+| Books | `@rajkumarganesan93/books` | 5176 | Booking ledger and invoicing |
 
-Each module exports:
-- `*Routes` — Lazy-loaded route definitions for the shell app
-- `*NavItem` — Navigation item configuration (label, path, icon)
+Each module:
+- **Exposes** page components via `remoteEntry.js` (ContactsList, ContactDetail, ContactForm, etc.)
+- **Exports** navigation config (`*NavItem`) for the shell's sidebar
+- **Runs standalone** for isolated development and testing
+- **Deploys independently** -- bug fixes ship without touching other modules
+
+See [MICROFRONTEND.md](MICROFRONTEND.md) for the complete architecture documentation.
 
 ## Shared Packages
 
@@ -195,7 +213,7 @@ Each module exports:
 
 Reusable UI component library with theme support.
 
-**Components:** `Button`, `TextField`, `Toast`, `ToastProvider`, `ThemeProvider`
+**Components:** `Button`, `TextField`, `Toast`, `ToastProvider`, `ThemeProvider`, `ServiceErrorBoundary`
 
 **Features:**
 - Six color variants (primary, secondary, success, warning, error, info)
@@ -341,8 +359,11 @@ The **Admin Panel** uses Keycloak PKCE authentication via the `@rajkumarganesan9
 5. The token is also passed to `RealtimeProvider` for authenticated Socket.IO connections
 
 **Keycloak client setup (required):** The `cargoez-web` client in Keycloak must have these redirect URIs configured:
-- `http://localhost:5173/*` (CargoEz app)
-- `http://localhost:5174/*` (Admin Panel)
+- `http://localhost:5173/*` (CargoEz shell)
+- `http://localhost:5174/*` (Contacts remote)
+- `http://localhost:5175/*` (Freight remote)
+- `http://localhost:5176/*` (Books remote)
+- `http://localhost:5177/*` (Admin Panel)
 
 **Test users** (realm: `cargoez`):
 
@@ -437,6 +458,7 @@ Uses **Vitest** with **React Testing Library** and **jsdom** for component testi
 | React | 19.x | UI framework |
 | TypeScript | 5.9.x | Type safety |
 | Vite | 7.x | Build tool and dev server |
+| vite-plugin-federation | 1.x | Module Federation for micro-frontends |
 | Tailwind CSS | 4.x | Styling |
 | Axios | 1.x | HTTP client |
 | React Router | 7.x | Routing |

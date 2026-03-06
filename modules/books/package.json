@@ -10,7 +10,7 @@
     "@rajkumarganesan93/uifunctions": "*"
   },
   "scripts": {
-    "dev": "vite --port 5176",
+    "dev": "vite build && vite preview --port 5176",
     "build": "vite build",
     "preview": "vite preview --port 5176"
   },
@@ -21,6 +21,9 @@
   },
   "devDependencies": {
     "@originjs/vite-plugin-federation": "^1.4.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.1",
     "@tailwindcss/vite": "^4.2.1",
     "@vitejs/plugin-react": "^5.1.4",
     "tailwindcss": "^4.2.1",

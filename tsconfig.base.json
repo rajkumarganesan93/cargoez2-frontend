@@ -18,6 +18,9 @@
     "noUncheckedSideEffectImports": true,
     "erasableSyntaxOnly": true,
     "forceConsistentCasingInFileNames": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "paths": {
+      "@originjs/vite-plugin-federation": ["./types/vite-plugin-federation"]
+    }
   }
 }

@@ -13,3 +13,5 @@ export { default as DarkTheme } from "./themes/darkTheme";
 export { Toast } from "./components/Toast/Toast";
 export type { ToastItem, ToastType } from "./components/Toast/Toast";
 export { ToastProvider, useToast } from "./components/Toast/ToastProvider";
+export { ServiceErrorBoundary } from "./components/ServiceErrorBoundary/ServiceErrorBoundary";
+export type { ServiceErrorBoundaryProps } from "./components/ServiceErrorBoundary/ServiceErrorBoundary";

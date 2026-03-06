@@ -1,8 +1,20 @@
 import { Suspense, lazy } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { ServiceErrorBoundary } from "@rajkumarganesan93/uicontrols";
 import { AppLayout } from "./presentation/layouts/AppLayout";
 import Dashboard from "./presentation/pages/Dashboard";
 import UiDemo from "./presentation/pages/UiDemo";
+
+function FederatedRoute({ serviceName, children }: { serviceName: string; children: React.ReactNode }) {
+  const location = useLocation();
+  return (
+    <ServiceErrorBoundary key={location.pathname} serviceName={serviceName}>
+      <Suspense fallback={<div className="p-6 text-text-secondary">Loading...</div>}>
+        {children}
+      </Suspense>
+    </ServiceErrorBoundary>
+  );
+}
 
 const ContactsList = lazy(() => import("contacts/ContactsList"));
 const ContactDetail = lazy(() => import("contacts/ContactDetail"));
@@ -17,18 +29,18 @@ const BookDetail = lazy(() => import("books/BookDetail"));
 const BookForm = lazy(() => import("books/BookForm"));
 
 const federatedRoutes = [
-  { path: "contacts", element: ContactsList },
-  { path: "contacts/:id", element: ContactDetail },
-  { path: "contacts/new", element: ContactForm },
-  { path: "contacts/:id/edit", element: ContactForm },
-  { path: "freight", element: FreightList },
-  { path: "freight/new", element: FreightForm },
-  { path: "freight/:id", element: FreightDetail },
-  { path: "freight/:id/edit", element: FreightForm },
-  { path: "books", element: BooksList },
-  { path: "books/:id", element: BookDetail },
-  { path: "books/new", element: BookForm },
-  { path: "books/:id/edit", element: BookForm },
+  { path: "contacts", element: ContactsList, service: "Contacts" },
+  { path: "contacts/:id", element: ContactDetail, service: "Contacts" },
+  { path: "contacts/new", element: ContactForm, service: "Contacts" },
+  { path: "contacts/:id/edit", element: ContactForm, service: "Contacts" },
+  { path: "freight", element: FreightList, service: "Freight" },
+  { path: "freight/new", element: FreightForm, service: "Freight" },
+  { path: "freight/:id", element: FreightDetail, service: "Freight" },
+  { path: "freight/:id/edit", element: FreightForm, service: "Freight" },
+  { path: "books", element: BooksList, service: "Books" },
+  { path: "books/:id", element: BookDetail, service: "Books" },
+  { path: "books/new", element: BookForm, service: "Books" },
+  { path: "books/:id/edit", element: BookForm, service: "Books" },
 ];
 
 export default function App() {
@@ -45,9 +57,9 @@ export default function App() {
               key={route.path}
               path={`/${route.path}`}
               element={
-                <Suspense fallback={<div className="p-6 text-text-secondary">Loading...</div>}>
+                <FederatedRoute serviceName={route.service}>
                   <Component />
-                </Suspense>
+                </FederatedRoute>
               }
             />
           );
