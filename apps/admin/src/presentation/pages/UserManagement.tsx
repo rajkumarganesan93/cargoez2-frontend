@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { Button, TextField } from "@rajkumarganesan93/uicontrols";
+import { usePermissions } from "@rajkumarganesan93/auth";
 import { useUserList, useUserMutation } from "../hooks/useAdmin";
 import type { User } from "../../domain";
 
@@ -16,6 +17,10 @@ const emptyForm: UserFormData = { name: "", email: "", phone: "" };
 export default function UserManagement() {
   const { users, meta, loading, search, refetch, goToPage, handleSearch, connected } = useUserList();
   const { saving, createUser, updateUser, deleteUser } = useUserMutation();
+  const { can } = usePermissions();
+  const canCreate = can("create", "user-management", "users");
+  const canUpdate = can("update", "user-management", "users");
+  const canDelete = can("delete", "user-management", "users");
 
   const [formMode, setFormMode] = useState<FormMode>("closed");
   const [formData, setFormData] = useState<UserFormData>(emptyForm);
@@ -113,13 +118,15 @@ export default function UserManagement() {
             {connected ? "Live" : "Offline"}
           </span>
         </div>
-        <Button
-          label="Create User"
-          variant="contained"
-          color="primary"
-          onClick={openCreateForm}
-          disabled={formMode !== "closed"}
-        />
+        {canCreate && (
+          <Button
+            label="Create User"
+            variant="contained"
+            color="primary"
+            onClick={openCreateForm}
+            disabled={formMode !== "closed"}
+          />
+        )}
       </div>
 
       {/* Inline Form */}
@@ -255,21 +262,25 @@ export default function UserManagement() {
                         </div>
                       ) : (
                         <div className="flex gap-2">
-                          <Button
-                            label="Edit"
-                            variant="text"
-                            color="primary"
-                            size="small"
-                            onClick={() => openEditForm(user)}
-                            disabled={formMode !== "closed"}
-                          />
-                          <Button
-                            label="Delete"
-                            variant="text"
-                            color="error"
-                            size="small"
-                            onClick={() => setDeleteConfirmId(user.id)}
-                          />
+                          {canUpdate && (
+                            <Button
+                              label="Edit"
+                              variant="text"
+                              color="primary"
+                              size="small"
+                              onClick={() => openEditForm(user)}
+                              disabled={formMode !== "closed"}
+                            />
+                          )}
+                          {canDelete && (
+                            <Button
+                              label="Delete"
+                              variant="text"
+                              color="error"
+                              size="small"
+                              onClick={() => setDeleteConfirmId(user.id)}
+                            />
+                          )}
                         </div>
                       )}
                     </td>

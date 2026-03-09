@@ -8,10 +8,13 @@ import {
   setTokenRefresher,
   RealtimeProvider,
 } from "@rajkumarganesan93/uifunctions";
-import { AuthProvider, useAuth } from "@rajkumarganesan93/auth";
+import { AuthProvider, useAuth, PermissionProvider } from "@rajkumarganesan93/auth";
+import type { PermissionData } from "@rajkumarganesan93/auth";
+import { api, type ApiResponse } from "@rajkumarganesan93/uifunctions";
 import App from "./App";
 import "./index.css";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 const USER_SERVICE_URL = import.meta.env.VITE_USER_SERVICE_URL || "http://localhost:3001";
 
 const keycloakConfig = {
@@ -20,7 +23,7 @@ const keycloakConfig = {
   clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID,
 };
 
-configureClient({ baseURL: USER_SERVICE_URL, timeout: 10000 });
+configureClient({ baseURL: API_BASE_URL, timeout: 10000 });
 
 function handleToken(token: string) {
   setAuthToken(token);
@@ -46,13 +49,20 @@ function AppWithRealtime() {
     });
   }, [getToken]);
 
+  const permissionFetcher = useCallback(async (): Promise<PermissionData> => {
+    const res = await api.get<ApiResponse<PermissionData>>("/auth-service/me/permissions");
+    return res.data.data;
+  }, []);
+
   return (
-    <RealtimeProvider
-      getToken={getTokenSync}
-      defaultServiceUrl={USER_SERVICE_URL}
-    >
-      <App />
-    </RealtimeProvider>
+    <PermissionProvider fetcher={permissionFetcher}>
+      <RealtimeProvider
+        getToken={getTokenSync}
+        defaultServiceUrl={USER_SERVICE_URL}
+      >
+        <App />
+      </RealtimeProvider>
+    </PermissionProvider>
   );
 }
 
