@@ -46,7 +46,7 @@ import { PermissionProvider, usePermissions, PermissionGate } from '@rajkumargan
 
 // Wrap with PermissionProvider (inside AuthProvider)
 <PermissionProvider fetcher={async () => {
-  const res = await api.get('/auth-service/me/permissions');
+  const res = await api.get('/admin-service/me/context');
   return res.data.data;
 }}>
   <App />

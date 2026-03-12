@@ -1,17 +1,36 @@
 export interface Contact {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  company: string;
+  uid: string;
+  contactType: string;
+  companyName?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  mobile?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postalCode?: string;
+  taxId?: string;
+  notes?: string;
+  isActive: boolean;
   createdAt: string;
+  modifiedAt: string;
 }
 
 export interface CreateContactInput {
-  name: string;
-  email: string;
-  phone: string;
-  company: string;
+  contactType: string;
+  companyName?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  mobile?: string;
+  city?: string;
+  country?: string;
+  notes?: string;
 }
 
 export type UpdateContactInput = Partial<CreateContactInput>;

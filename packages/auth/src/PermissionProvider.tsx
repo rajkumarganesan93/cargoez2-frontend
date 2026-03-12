@@ -3,33 +3,33 @@ import { useAuth } from "./AuthContext";
 import {
   PermissionContext,
   type PermissionContextValue,
-  type PermissionData,
+  type UserContextData,
 } from "./PermissionContext";
 
 interface PermissionProviderProps {
-  /** Async function that fetches the user's permissions from the backend */
-  fetcher: () => Promise<PermissionData>;
+  fetcher: () => Promise<UserContextData>;
   children: React.ReactNode;
 }
 
 export function PermissionProvider({ fetcher, children }: PermissionProviderProps) {
   const { token } = useAuth();
-  const [permissions, setPermissions] = useState<PermissionData | null>(null);
+  const [userContext, setUserContext] = useState<UserContextData | null>(null);
   const [loading, setLoading] = useState(true);
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
   const hasFetchedRef = useRef(false);
 
   const lookupRef = useRef<Set<string>>(new Set());
+  const isSysAdminRef = useRef(false);
 
-  const buildLookup = useCallback((data: PermissionData) => {
+  const buildLookup = useCallback((data: UserContextData) => {
     const set = new Set<string>();
-    for (const mod of data.modules) {
-      for (const scr of mod.screens) {
-        for (const op of scr.operations) {
-          set.add(`${mod.code}.${scr.code}.${op}`);
-        }
+    isSysAdminRef.current = false;
+    for (const perm of data.permissions) {
+      if (perm.key === '*') {
+        isSysAdminRef.current = true;
       }
+      set.add(perm.key);
     }
     lookupRef.current = set;
   }, []);
@@ -38,12 +38,13 @@ export function PermissionProvider({ fetcher, children }: PermissionProviderProp
     setLoading(true);
     try {
       const data = await fetcherRef.current();
-      setPermissions(data);
+      setUserContext(data);
       buildLookup(data);
     } catch (err) {
-      console.error("Failed to fetch permissions:", err);
-      setPermissions(null);
+      console.error("Failed to fetch user context:", err);
+      setUserContext(null);
       lookupRef.current = new Set();
+      isSysAdminRef.current = false;
     } finally {
       setLoading(false);
     }
@@ -56,23 +57,38 @@ export function PermissionProvider({ fetcher, children }: PermissionProviderProp
     }
   }, [token, fetchPermissions]);
 
+  const hasPermission = useCallback((permissionKey: string): boolean => {
+    if (isSysAdminRef.current) return true;
+    return lookupRef.current.has(permissionKey);
+  }, []);
+
   const can = useCallback(
-    (operation: string, module: string, screen: string): boolean => {
-      return lookupRef.current.has(`${module}.${screen}.${operation}`);
+    (operation: string, module: string, _screen?: string): boolean => {
+      if (isSysAdminRef.current) return true;
+      return lookupRef.current.has(`${module}.${operation}`);
     },
     [],
   );
 
   const canAny = useCallback(
-    (operations: string[], module: string, screen: string): boolean => {
-      return operations.some((op) => lookupRef.current.has(`${module}.${screen}.${op}`));
+    (operations: string[], module: string, _screen?: string): boolean => {
+      if (isSysAdminRef.current) return true;
+      return operations.some((op) => lookupRef.current.has(`${module}.${op}`));
     },
     [],
   );
 
   const value: PermissionContextValue = useMemo(
-    () => ({ permissions, loading, can, canAny, refresh: fetchPermissions }),
-    [permissions, loading, can, canAny, fetchPermissions],
+    () => ({
+      permissions: null,
+      userContext,
+      loading,
+      can,
+      canAny,
+      hasPermission,
+      refresh: fetchPermissions,
+    }),
+    [userContext, loading, can, canAny, hasPermission, fetchPermissions],
   );
 
   return (

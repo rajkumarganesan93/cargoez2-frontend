@@ -1,0 +1,33 @@
+{
+  "name": "@rajkumarganesan93/tenant-admin",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@rajkumarganesan93/auth": "*",
+    "@rajkumarganesan93/uicontrols": "*",
+    "@rajkumarganesan93/uifunctions": "*"
+  },
+  "scripts": {
+    "dev": "vite build && vite preview --port 5178",
+    "build": "vite build",
+    "preview": "vite preview --port 5178"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0",
+    "react-router-dom": ">=6.0.0"
+  },
+  "devDependencies": {
+    "@originjs/vite-plugin-federation": "^1.4.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.1",
+    "@tailwindcss/vite": "^4.2.1",
+    "@vitejs/plugin-react": "^5.1.4",
+    "tailwindcss": "^4.2.1",
+    "vite": "^7.3.1"
+  }
+}

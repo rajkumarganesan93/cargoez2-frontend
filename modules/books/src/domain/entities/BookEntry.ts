@@ -1,20 +1,33 @@
 export interface BookEntry {
-  id: string;
+  uid: string;
   invoiceNumber: string;
-  customerName: string;
-  amount: number;
+  contactUid?: string;
+  shipmentUid?: string;
+  invoiceDate: string;
+  dueDate?: string;
   currency: string;
-  status: "Paid" | "Pending" | "Overdue";
-  date: string;
+  subtotal: number;
+  taxAmount: number;
+  totalAmount: number;
+  status: string;
   notes?: string;
+  isActive: boolean;
+  createdAt: string;
+  modifiedAt: string;
 }
 
 export interface CreateBookEntryInput {
   invoiceNumber: string;
-  customerName: string;
-  amount: number;
+  invoiceDate: string;
   currency: string;
+  subtotal: number;
+  taxAmount: number;
+  totalAmount: number;
+  status: string;
+  contactUid?: string;
+  shipmentUid?: string;
+  dueDate?: string;
   notes?: string;
 }
 
-export interface UpdateBookEntryInput extends Partial<CreateBookEntryInput> {}
+export type UpdateBookEntryInput = Partial<CreateBookEntryInput>;

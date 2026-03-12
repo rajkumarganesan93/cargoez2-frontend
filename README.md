@@ -26,15 +26,15 @@ Micro-frontend monorepo for the CargoEz logistics platform, built with **React 1
 ┌─────────────────────────────────────────────────────┐
 │                   Applications                       │
 │  ┌──────────────────┐   ┌────────────────────────┐  │
-│  │   CargoEz App    │   │     Admin Panel         │  │
-│  │   (port 5173)    │   │     (port 5177)         │  │
-│  └────────┬─────────┘   └────────┬───────────────┘  │
-│           │                      │                   │
-│  ┌────────┴──────────────────────┴───────────────┐  │
+│  │ Tenant Portal    │   │  SysAdmin Portal       │  │
+│  │ (cargoez :5173)  │   │  (admin :5177)         │  │
+│  └────────┬─────────┘   └────────────────────────┘  │
+│           │                                          │
+│  ┌────────┴──────────────────────────────────────┐  │
 │  │          Micro-Frontend Modules                │  │
-│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐    │  │
-│  │  │ Contacts │  │ Freight  │  │  Books   │    │  │
-│  │  └──────────┘  └──────────┘  └──────────┘    │  │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────┐  │
+│  │  │ Contacts │ │ Freight  │ │  Books   │ │tenant-admin│  │
+│  │  └──────────┘ └──────────┘ └──────────┘ └────────────┘  │
 │  └───────────────────────┬───────────────────────┘  │
 │                          │                           │
 │  ┌───────────────────────┴───────────────────────┐  │
@@ -57,10 +57,11 @@ FRONTEND/
 ├── modules/                   # Micro-frontend feature modules
 │   ├── contacts/              #   Contact management
 │   ├── freight/               #   Freight & shipment tracking
-│   └── books/                 #   Booking ledger & invoicing
+│   ├── books/                 #   Booking ledger & invoicing
+│   └── tenant-admin/          #   Tenant administration (roles, permissions)
 ├── apps/                      # Deployable applications
-│   ├── cargoez/               #   Main web application (shell)
-│   └── admin/                 #   Admin panel (connected to real backend)
+│   ├── cargoez/               #   Tenant portal shell (app.cargoez.com)
+│   └── admin/                 #   SysAdmin portal (admin.cargoez.com)
 ├── package.json               # Root workspace config
 ├── tsconfig.base.json         # Shared TypeScript config
 ├── .npmrc.example             # NPM registry config template
@@ -73,7 +74,7 @@ FRONTEND/
 - **npm** >= 9.x (uses npm workspaces)
 - **Git**
 - **Keycloak** >= 26.x (for authentication — required by the Admin Panel)
-- **CargoEz Backend** running (user-service on port 3001, API Portal on port 4000)
+- **CargoEz Backend** running (admin-service on port 3001, freight/contacts/books services on ports 3002-3004, API Portal on port 4000)
 
 ## Getting Started
 
@@ -166,28 +167,28 @@ npm run dev -w apps/cargoez
 
 ## Applications
 
-### CargoEz App (`apps/cargoez`)
+### Tenant Portal (`apps/cargoez`) — app.cargoez.com
 
-The main web application that serves as the **host** for all micro-frontend modules. Uses **Vite Module Federation** (`@originjs/vite-plugin-federation`) to dynamically load Contacts, Freight, and Books from their own ports at runtime.
+The tenant-facing web application that serves as the **host** for all micro-frontend modules. Uses **Vite Module Federation** (`@originjs/vite-plugin-federation`) to dynamically load Contacts, Freight, Books, and Tenant Admin from their own ports at runtime. Authenticates via Keycloak client `cargoez-web`.
 
 **Key features:**
 - Sidebar navigation with module integration
-- Dashboard with stats and quick actions
-- UI Demo page showcasing all shared components
-- Module Federation host -- loads remote components on demand
-- `ServiceErrorBoundary` -- graceful fallback when a remote is unavailable
+- Dashboard with tenant-specific data
+- Module Federation host — loads remote components on demand
+- `ServiceErrorBoundary` — graceful fallback when a remote is unavailable
+- ABAC-based permission gating via `@rajkumarganesan93/auth`
 
-### Admin Panel (`apps/admin`)
+### SysAdmin Portal (`apps/admin`) — admin.cargoez.com
 
-Standalone administration application with its own Clean Architecture structure. **Fully integrated with the real backend** — connects to the user-service (port 3001) with Keycloak PKCE authentication and Socket.IO real-time data sync.
+Standalone administration application for platform management. **Fully integrated with the real backend** — connects to admin-service (port 3001) with Keycloak PKCE authentication via client `cargoez-admin`.
 
 **Key features:**
-- **Keycloak PKCE authentication** — login required, JWT tokens on all API calls
-- **Automatic token refresh** — proactive refresh before expiry, 401 retry interceptor, `onTokenExpired` safety net
-- **User management** — full CRUD with paginated list, inline create/edit forms, server-side search, phone field, soft-delete with confirmation
-- **Real-time sync** — live/offline indicator, auto-refresh when another user modifies data via Socket.IO
-- **System settings** — API Gateway and Keycloak configuration display
-- **Admin dashboard** — system stats overview
+- **Keycloak PKCE authentication** — login required via `cargoez-admin` client
+- **Tenant management** — CRUD operations for tenants, branches, app customers
+- **Admin roles & permissions** — manage SysAdmin-level access control
+- **Products & subscriptions** — product catalog and subscription management
+- **Metadata management** — system-level metadata (countries, tenant types)
+- **Generic CRUD** — `AdminCrudPage` component with integrated permission gating
 
 ## Micro-Frontend Modules
 
@@ -198,6 +199,7 @@ Each module is a self-contained micro-frontend that follows Clean Architecture. 
 | Contacts | `@rajkumarganesan93/contacts` | 5174 | Contact management (CRUD) |
 | Freight | `@rajkumarganesan93/freight` | 5175 | Shipment tracking and management |
 | Books | `@rajkumarganesan93/books` | 5176 | Booking ledger and invoicing |
+| Tenant Admin | `@rajkumarganesan93/tenant-admin` | — | Tenant-level admin (roles, permissions, users) |
 
 Each module:
 - **Exposes** page components via `remoteEntry.js` (ContactsList, ContactDetail, ContactForm, etc.)
@@ -316,62 +318,77 @@ Both applications use `.env` files (not committed; `.env.example` is provided):
 
 | Variable | Description | Default | Used by |
 |---|---|---|---|
-| `VITE_API_BASE_URL` | Backend API Portal URL | `http://localhost:4000` | Both apps |
-| `VITE_USER_SERVICE_URL` | User service direct URL | `http://localhost:3001` | Admin only |
-| `VITE_KEYCLOAK_URL` | Keycloak server URL | `http://localhost:8080` | Admin only |
-| `VITE_KEYCLOAK_REALM` | Keycloak realm name | `cargoez` | Admin only |
-| `VITE_KEYCLOAK_CLIENT_ID` | Keycloak PKCE client ID | `cargoez-web` | Admin only |
+| `VITE_API_BASE_URL` | Backend API Portal URL | `http://localhost:4000` | Both portals |
+| `VITE_KEYCLOAK_URL` | Keycloak server URL | `http://localhost:8080` | Both portals |
+| `VITE_KEYCLOAK_REALM` | Keycloak realm name | `cargoez` | Both portals |
+| `VITE_KEYCLOAK_CLIENT_ID` | Keycloak PKCE client ID | `cargoez-admin` (admin) / `cargoez-web` (tenant) | Both portals |
 
 ## Backend Integration
 
-This frontend connects to the [CargoEz Backend](https://github.com/rajkumarganesan93/cargoez2-backend) microservices:
+This frontend connects to the CargoEz Backend microservices:
 
 | Service | Port | Swagger UI | Purpose |
 |---|---|---|---|
 | **API Portal** | 4000 | http://localhost:4000/api-docs | Aggregated Swagger + API routing |
-| **User Service** | 3001 | http://localhost:3001/user-service/api-docs | User CRUD — Admin Panel connects directly |
-| **Keycloak** | 8080 | — | Authentication (realm: `cargoez`, PKCE client: `cargoez-web`) |
+| **Admin Service** | 3001 | http://localhost:3001/admin-service/api-docs | Central management — tenants, users, roles, permissions |
+| **Freight Service** | 3002 | http://localhost:3002/freight-service/api-docs | Freight / shipment operations |
+| **Contacts Service** | 3003 | http://localhost:3003/contacts-service/api-docs | Contact management |
+| **Books Service** | 3004 | http://localhost:3004/books-service/api-docs | Books / accounting |
+| **Keycloak** | 8080 | — | Authentication (realm: `cargoez`) |
+
+### Two-Portal Architecture
+
+| Portal | App | Keycloak Client | URL |
+|---|---|---|---|
+| SysAdmin Portal | `apps/admin` | `cargoez-admin` | admin.cargoez.com (dev: :5177) |
+| Tenant Portal | `apps/cargoez` | `cargoez-web` | app.cargoez.com (dev: :5173) |
 
 ### API Endpoint Convention
 
-All backend service endpoints are prefixed with the service name. For the user-service:
+All backend service endpoints are prefixed with the service name:
 
 ```
-Base URL: http://localhost:3001  (or http://localhost:4000 via API Portal)
+GET    /admin-service/tenants               # List tenants
+GET    /admin-service/me/context            # Get current user context + permissions
+POST   /admin-service/app-customers         # Create app customer
 
-GET    /user-service/users                  # List users (paginated, searchable)
-GET    /user-service/users/:id              # Get user by ID
-GET    /user-service/users/me               # Get current user context
-POST   /user-service/users                  # Create user (admin role)
-PUT    /user-service/users/:id              # Update user (admin role)
-DELETE /user-service/users/:id              # Soft-delete user (admin role)
-GET    /user-service/health                 # Health check (public)
+GET    /freight-service/shipments           # List shipments (tenant-scoped)
+GET    /contacts-service/contacts           # List contacts (tenant-scoped)
+GET    /books-service/invoices              # List invoices (tenant-scoped)
 ```
 
 ### Authentication
 
-The **Admin Panel** uses Keycloak PKCE authentication via the `@rajkumarganesan93/auth` package:
+Both portals use Keycloak PKCE authentication via the `@rajkumarganesan93/auth` package:
 
 1. On login, a JWT access token is obtained via PKCE Authorization Code flow
 2. The `onToken` callback calls `setAuthToken(token)` to store the token in the axios module
 3. A **request interceptor** dynamically injects `Authorization: Bearer <token>` before every API request
 4. Token refresh is proactive (every 30s) with a 401 retry interceptor as backup
-5. The token is also passed to `RealtimeProvider` for authenticated Socket.IO connections
+5. The `PermissionProvider` fetches user context and permissions from `/admin-service/me/context`
 
-**Keycloak client setup (required):** The `cargoez-web` client in Keycloak must have these redirect URIs configured:
-- `http://localhost:5173/*` (CargoEz shell)
-- `http://localhost:5174/*` (Contacts remote)
-- `http://localhost:5175/*` (Freight remote)
-- `http://localhost:5176/*` (Books remote)
-- `http://localhost:5177/*` (Admin Panel)
+### Permission Gating
+
+Frontend permission gating uses the `can(operation, module)` function from `@rajkumarganesan93/auth`:
+
+```tsx
+const { can } = usePermissions();
+
+{can('create', 'contacts') && <Button>Create Contact</Button>}
+```
+
+This is **cosmetic enforcement** — the backend guards are the actual security boundary.
 
 **Test users** (realm: `cargoez`):
 
-| Username | Password | Roles | Access |
+| User | Password | Portal | Role |
 |---|---|---|---|
-| `admin` | `admin123` | admin, user | Full CRUD |
-| `manager` | `manager123` | manager, user | Read + Update |
-| `testuser` | `test123` | user | Read only |
+| `admin@cargoez.com` | `admin123` | SysAdmin (:5177) | Super Admin |
+| `support@cargoez.com` | `support123` | SysAdmin (:5177) | Support Admin |
+| `manager@demo.cargoez.com` | `demo123` | Tenant (:5173) | Manager |
+| `viewer@demo.cargoez.com` | `demo123` | Tenant (:5173) | Viewer |
+| `manager@acme.cargoez.com` | `acme123` | Tenant (:5173) | Manager |
+| `admin@globalfreight.cargoez.com` | `global123` | Tenant (:5173) | Admin (Enterprise) |
 
 ### API Response Format
 
@@ -401,25 +418,21 @@ Paginated list responses:
 
 The `uifunctions` API client includes interceptors that extract backend messages for display via the Toast notification system. Success and error messages always come from the backend, not hardcoded in the frontend.
 
-### User Entity
+### Base Entity Shape
+
+All domain entities follow the backend `BaseEntity` shape with camelCase field names:
 
 ```typescript
-interface User {
-  id: string;              // UUID
-  name: string;
-  email: string;
-  phone?: string;
-  createdAt: string;       // ISO 8601
-  modifiedAt: string;      // ISO 8601
+interface BaseEntity {
+  uid: string;              // UUID primary key
+  tenantUid?: string;       // Tenant identifier
+  isActive: boolean;        // Soft-delete flag
+  createdAt: string;        // ISO 8601
+  modifiedAt: string;       // ISO 8601
   createdBy?: string;
   modifiedBy?: string;
-  tenantId?: string;
 }
 ```
-
-### Real-Time Data Sync
-
-The Admin Panel uses Socket.IO to receive real-time updates when data is modified by another user. The user-service emits `data-changed` events. The frontend auto-refreshes affected lists and shows Toast notifications. See [DEVELOPMENT.md](DEVELOPMENT.md) for integration details.
 
 ## Storybook
 

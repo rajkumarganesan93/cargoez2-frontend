@@ -1,7 +1,7 @@
 export const BOOK_ENDPOINTS = {
-  LIST: "/books",
-  DETAIL: (id: string) => `/books/${id}`,
-  CREATE: "/books",
-  UPDATE: (id: string) => `/books/${id}`,
-  DELETE: (id: string) => `/books/${id}`,
+  LIST: "/books-service/invoices",
+  DETAIL: (uid: string) => `/books-service/invoices/${uid}`,
+  CREATE: "/books-service/invoices",
+  UPDATE: (uid: string) => `/books-service/invoices/${uid}`,
+  DELETE: (uid: string) => `/books-service/invoices/${uid}`,
 } as const;

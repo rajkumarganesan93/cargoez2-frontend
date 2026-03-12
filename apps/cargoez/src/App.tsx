@@ -28,6 +28,8 @@ const BooksList = lazy(() => import("books/BooksList"));
 const BookDetail = lazy(() => import("books/BookDetail"));
 const BookForm = lazy(() => import("books/BookForm"));
 
+const TenantAdminRoutes = lazy(() => import("tenantAdmin/TenantAdminRoutes"));
+
 const federatedRoutes = [
   { path: "contacts", element: ContactsList, service: "Contacts" },
   { path: "contacts/:id", element: ContactDetail, service: "Contacts" },
@@ -64,6 +66,14 @@ export default function App() {
             />
           );
         })}
+        <Route
+          path="/admin/*"
+          element={
+            <FederatedRoute serviceName="Tenant Admin">
+              <TenantAdminRoutes />
+            </FederatedRoute>
+          }
+        />
       </Route>
     </Routes>
   );

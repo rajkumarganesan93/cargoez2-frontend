@@ -1,54 +1,55 @@
-export const USER_ENDPOINTS = {
-  LIST: "/user-service/users",
-  ME: "/user-service/users/me",
-  DETAIL: (id: string) => `/user-service/users/${id}`,
-  CREATE: "/user-service/users",
-  UPDATE: (id: string) => `/user-service/users/${id}`,
-  DELETE: (id: string) => `/user-service/users/${id}`,
-} as const;
+const BASE = "/admin-service";
+
+export function crudEndpoints(resource: string) {
+  return {
+    LIST: `${BASE}/${resource}`,
+    DETAIL: (uid: string) => `${BASE}/${resource}/${uid}`,
+    CREATE: `${BASE}/${resource}`,
+    UPDATE: (uid: string) => `${BASE}/${resource}/${uid}`,
+    DELETE: (uid: string) => `${BASE}/${resource}/${uid}`,
+  };
+}
+
+export const TENANT_ENDPOINTS = crudEndpoints("tenants");
+export const BRANCH_ENDPOINTS = crudEndpoints("branches");
+export const APP_CUSTOMER_ENDPOINTS = crudEndpoints("app-customers");
+export const BRANCH_CUSTOMER_ENDPOINTS = crudEndpoints("branch-customers");
+export const SYS_ADMIN_ENDPOINTS = crudEndpoints("sys-admins");
+export const METADATA_ENDPOINTS = {
+  ...crudEndpoints("metadata"),
+  DETAILS: (metaUid: string) => `${BASE}/metadata/${metaUid}/details`,
+  CREATE_DETAIL: `${BASE}/metadata/details`,
+  UPDATE_DETAIL: (uid: string) => `${BASE}/metadata/details/${uid}`,
+  DELETE_DETAIL: (uid: string) => `${BASE}/metadata/details/${uid}`,
+};
+export const MODULE_ENDPOINTS = crudEndpoints("master-catalog/modules");
+export const OPERATION_ENDPOINTS = crudEndpoints("master-catalog/operations");
+export const PRODUCT_ENDPOINTS = crudEndpoints("products");
+export const SUBSCRIPTION_ENDPOINTS = crudEndpoints("subscriptions");
+
+export const ADMIN_ROLE_ENDPOINTS = crudEndpoints("admin-access-control/roles");
+
+export const ADMIN_PERMISSION_ENDPOINTS = {
+  LIST: `${BASE}/admin-access-control/permissions`,
+  DETAIL: (uid: string) => `${BASE}/admin-access-control/permissions/${uid}`,
+  CREATE: `${BASE}/admin-access-control/permissions`,
+  UPDATE: (uid: string) => `${BASE}/admin-access-control/permissions/${uid}`,
+  DELETE: (uid: string) => `${BASE}/admin-access-control/permissions/${uid}`,
+};
+
+export const ADMIN_ROLE_PERMISSION_ENDPOINTS = {
+  BY_ROLE: (roleUid: string) => `${BASE}/admin-access-control/role-permissions/${roleUid}`,
+  ASSIGN: `${BASE}/admin-access-control/role-permissions`,
+  REVOKE: (uid: string) => `${BASE}/admin-access-control/role-permissions/${uid}`,
+};
+
+export const SYS_ADMIN_ROLE_ENDPOINTS = {
+  BY_SYS_ADMIN: (sysAdminUid: string) => `${BASE}/admin-access-control/sys-admin-roles/${sysAdminUid}`,
+  ASSIGN: `${BASE}/admin-access-control/sys-admin-roles`,
+  REVOKE: (uid: string) => `${BASE}/admin-access-control/sys-admin-roles/${uid}`,
+};
 
 export const SETTINGS_ENDPOINTS = {
   GET: "/admin/settings",
   UPDATE: "/admin/settings",
-} as const;
-
-export const ROLE_ENDPOINTS = {
-  LIST: "/auth-service/roles",
-  DETAIL: (id: string) => `/auth-service/roles/${id}`,
-  CREATE: "/auth-service/roles",
-  UPDATE: (id: string) => `/auth-service/roles/${id}`,
-  DELETE: (id: string) => `/auth-service/roles/${id}`,
-} as const;
-
-export const MODULE_ENDPOINTS = {
-  LIST: "/auth-service/modules",
-  CREATE: "/auth-service/modules",
-  UPDATE: (id: string) => `/auth-service/modules/${id}`,
-  DELETE: (id: string) => `/auth-service/modules/${id}`,
-} as const;
-
-export const SCREEN_ENDPOINTS = {
-  LIST: "/auth-service/screens",
-  CREATE: "/auth-service/screens",
-  UPDATE: (id: string) => `/auth-service/screens/${id}`,
-  DELETE: (id: string) => `/auth-service/screens/${id}`,
-} as const;
-
-export const OPERATION_ENDPOINTS = {
-  LIST: "/auth-service/operations",
-  CREATE: "/auth-service/operations",
-} as const;
-
-export const PERMISSION_ENDPOINTS = {
-  LIST: "/auth-service/permissions",
-  CREATE: "/auth-service/permissions",
-  DELETE: (id: string) => `/auth-service/permissions/${id}`,
-} as const;
-
-export const ROLE_PERMISSION_ENDPOINTS = {
-  LIST: (roleId: string) => `/auth-service/roles/${roleId}/permissions`,
-  ASSIGN: (roleId: string) => `/auth-service/roles/${roleId}/permissions`,
-  REVOKE: (roleId: string, permId: string) => `/auth-service/roles/${roleId}/permissions/${permId}`,
-  RESOLVE: "/auth-service/resolve-permissions",
-  ME: "/auth-service/me/permissions",
 } as const;

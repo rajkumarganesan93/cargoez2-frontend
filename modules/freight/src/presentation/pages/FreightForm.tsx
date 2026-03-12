@@ -13,27 +13,47 @@ export default function FreightForm() {
   const { saving, createShipment, updateShipment } = useFreightMutation();
 
   const [formData, setFormData] = useState<CreateShipmentInput>({
+    shipmentNumber: "",
     origin: "",
     destination: "",
-    weight: "",
-    carrier: "",
-    estimatedDelivery: "",
+    mode: "air",
+    status: "draft",
+    shipperName: "",
+    consigneeName: "",
+    weight: undefined,
+    weightUnit: "kg",
+    pieces: undefined,
+    etd: "",
+    eta: "",
+    remarks: "",
   });
 
   useEffect(() => {
     if (shipment && isEdit) {
       setFormData({
+        shipmentNumber: shipment.shipmentNumber,
         origin: shipment.origin,
         destination: shipment.destination,
-        weight: shipment.weight,
-        carrier: shipment.carrier,
-        estimatedDelivery: shipment.estimatedDelivery,
+        mode: shipment.mode ?? "air",
+        status: shipment.status ?? "draft",
+        shipperName: shipment.shipperName ?? "",
+        consigneeName: shipment.consigneeName ?? "",
+        weight: shipment.weight ?? undefined,
+        weightUnit: shipment.weightUnit ?? "kg",
+        pieces: shipment.pieces ?? undefined,
+        etd: shipment.etd ?? "",
+        eta: shipment.eta ?? "",
+        remarks: shipment.remarks ?? "",
       });
     }
   }, [shipment, isEdit]);
 
   const handleChange = (field: keyof CreateShipmentInput) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({ ...prev, [field]: e.target.value }));
+    const value = e.target.value;
+    setFormData((prev) => ({
+      ...prev,
+      [field]: field === "weight" || field === "pieces" ? (value ? Number(value) : undefined) : value,
+    }));
   };
 
   const handleSubmit = async () => {
@@ -54,9 +74,19 @@ export default function FreightForm() {
       </h1>
       <div className="space-y-2">
         <TextField
+          id="freight-number"
+          label="Shipment Number"
+          placeholder="e.g. SHP-2026-001"
+          value={formData.shipmentNumber ?? ""}
+          onChange={handleChange("shipmentNumber")}
+          fullWidth
+          validations={[rules.required("Shipment number")]}
+          disabled={isEdit}
+        />
+        <TextField
           id="freight-origin"
           label="Origin"
-          placeholder="Enter origin city/address"
+          placeholder="Enter origin city/port"
           value={formData.origin}
           onChange={handleChange("origin")}
           fullWidth
@@ -65,39 +95,96 @@ export default function FreightForm() {
         <TextField
           id="freight-destination"
           label="Destination"
-          placeholder="Enter destination city/address"
+          placeholder="Enter destination city/port"
           value={formData.destination}
           onChange={handleChange("destination")}
           fullWidth
           validations={[rules.required("Destination")]}
         />
+        <div>
+          <label className="block text-sm font-medium text-text-primary mb-1">Mode</label>
+          <select
+            className="w-full border border-grey-300 rounded-md px-3 py-2 text-sm bg-bg-default text-text-primary"
+            value={formData.mode ?? "air"}
+            onChange={(e) => setFormData((prev) => ({ ...prev, mode: e.target.value }))}
+          >
+            <option value="air">Air</option>
+            <option value="sea">Sea</option>
+            <option value="road">Road</option>
+            <option value="rail">Rail</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-text-primary mb-1">Status</label>
+          <select
+            className="w-full border border-grey-300 rounded-md px-3 py-2 text-sm bg-bg-default text-text-primary"
+            value={formData.status ?? "draft"}
+            onChange={(e) => setFormData((prev) => ({ ...prev, status: e.target.value }))}
+          >
+            <option value="draft">Draft</option>
+            <option value="pending">Pending</option>
+            <option value="in-transit">In Transit</option>
+            <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <TextField
+          id="freight-shipper"
+          label="Shipper Name"
+          placeholder="Enter shipper name"
+          value={formData.shipperName ?? ""}
+          onChange={handleChange("shipperName")}
+          fullWidth
+        />
+        <TextField
+          id="freight-consignee"
+          label="Consignee Name"
+          placeholder="Enter consignee name"
+          value={formData.consigneeName ?? ""}
+          onChange={handleChange("consigneeName")}
+          fullWidth
+        />
         <TextField
           id="freight-weight"
           label="Weight"
-          placeholder="e.g. 250 kg"
-          value={formData.weight}
+          type="number"
+          placeholder="e.g. 250"
+          value={formData.weight != null ? String(formData.weight) : ""}
           onChange={handleChange("weight")}
           fullWidth
-          validations={[rules.required("Weight")]}
         />
         <TextField
-          id="freight-carrier"
-          label="Carrier"
-          placeholder="Enter carrier name"
-          value={formData.carrier}
-          onChange={handleChange("carrier")}
+          id="freight-pieces"
+          label="Pieces"
+          type="number"
+          placeholder="e.g. 10"
+          value={formData.pieces != null ? String(formData.pieces) : ""}
+          onChange={handleChange("pieces")}
           fullWidth
-          validations={[rules.required("Carrier")]}
         />
         <TextField
-          id="freight-estimatedDelivery"
-          label="Estimated Delivery"
-          type="text"
-          placeholder="YYYY-MM-DD"
-          value={formData.estimatedDelivery}
-          onChange={handleChange("estimatedDelivery")}
+          id="freight-etd"
+          label="ETD (Estimated Time of Departure)"
+          type="date"
+          value={formData.etd ?? ""}
+          onChange={handleChange("etd")}
           fullWidth
-          validations={[rules.required("Estimated delivery")]}
+        />
+        <TextField
+          id="freight-eta"
+          label="ETA (Estimated Time of Arrival)"
+          type="date"
+          value={formData.eta ?? ""}
+          onChange={handleChange("eta")}
+          fullWidth
+        />
+        <TextField
+          id="freight-remarks"
+          label="Remarks"
+          placeholder="Optional remarks"
+          value={formData.remarks ?? ""}
+          onChange={handleChange("remarks")}
+          fullWidth
         />
         <div className="flex gap-3 pt-4">
           <Button

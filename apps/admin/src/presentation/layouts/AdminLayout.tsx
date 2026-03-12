@@ -1,40 +1,68 @@
 import { Outlet, NavLink } from "react-router-dom";
 import { Button } from "@rajkumarganesan93/uicontrols";
-import { useAuth } from "@rajkumarganesan93/auth";
+import { useAuth, usePermissions } from "@rajkumarganesan93/auth";
+
+interface NavItem {
+  label: string;
+  path: string;
+  module: string;
+}
 
 interface NavSection {
   title?: string;
-  items: { label: string; path: string; icon: string }[];
+  items: NavItem[];
 }
 
-const navSections: NavSection[] = [
+const allNavSections: NavSection[] = [
   {
     items: [
-      { label: "Dashboard", path: "/dashboard", icon: "\u{1F4CA}" },
-      { label: "User Management", path: "/users", icon: "\u{1F464}" },
+      { label: "Dashboard", path: "/dashboard", module: "" },
     ],
   },
   {
-    title: "Authorization",
+    title: "Management",
     items: [
-      { label: "Roles", path: "/roles", icon: "\u{1F6E1}" },
-      { label: "Modules", path: "/modules", icon: "\u{1F4E6}" },
-      { label: "Screens", path: "/screens", icon: "\u{1F5A5}" },
-      { label: "Operations", path: "/operations", icon: "\u{2699}" },
-      { label: "Permissions", path: "/permissions", icon: "\u{1F511}" },
-      { label: "Role Permissions", path: "/role-permissions", icon: "\u{1F512}" },
+      { label: "Tenants", path: "/tenants", module: "tenants" },
+      { label: "Branches", path: "/branches", module: "branches" },
+      { label: "App Customers", path: "/app-customers", module: "app-customers" },
+      { label: "Branch Customers", path: "/branch-customers", module: "branch-customers" },
+      { label: "Sys Admins", path: "/sys-admins", module: "sys-admins" },
+    ],
+  },
+  {
+    title: "Configuration",
+    items: [
+      { label: "Metadata", path: "/metadata", module: "metadata" },
+      { label: "Master Catalog", path: "/master-catalog", module: "master-catalog" },
+      { label: "Products", path: "/products", module: "products" },
+      { label: "Subscriptions", path: "/subscriptions", module: "subscriptions" },
+    ],
+  },
+  {
+    title: "Access Control",
+    items: [
+      { label: "Admin Roles", path: "/admin-roles", module: "admin-access-control" },
+      { label: "Admin Permissions", path: "/admin-permissions", module: "admin-access-control" },
+      { label: "Role Permissions", path: "/admin-role-permissions", module: "admin-access-control" },
+      { label: "Sys Admin Roles", path: "/sys-admin-roles", module: "admin-access-control" },
     ],
   },
   {
     title: "System",
     items: [
-      { label: "System Settings", path: "/settings", icon: "\u{2699}\u{FE0F}" },
+      { label: "Settings", path: "/settings", module: "" },
     ],
   },
 ];
 
 export function AdminLayout() {
   const { userName, logout } = useAuth();
+  const { can, loading } = usePermissions();
+
+  const isVisible = (module: string) => {
+    if (!module) return true;
+    return can("read", module);
+  };
 
   return (
     <div className="flex min-h-screen bg-bg-default">
@@ -43,33 +71,40 @@ export function AdminLayout() {
           <span className="text-primary-contrast font-bold text-xl">Admin Panel</span>
         </div>
         <nav className="flex-1 p-2 mt-2 overflow-y-auto">
-          {navSections.map((section, si) => (
-            <div key={si} className={si > 0 ? "mt-4" : ""}>
-              {section.title && (
-                <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary-contrast/50">
-                  {section.title}
+          {loading ? (
+            <div className="text-primary-contrast/50 text-sm px-3 py-2">Loading...</div>
+          ) : (
+            allNavSections.map((section, si) => {
+              const visibleItems = section.items.filter((item) => isVisible(item.module));
+              if (visibleItems.length === 0) return null;
+              return (
+                <div key={si} className={si > 0 ? "mt-4" : ""}>
+                  {section.title && (
+                    <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-primary-contrast/50">
+                      {section.title}
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    {visibleItems.map((item) => (
+                      <NavLink
+                        key={item.path}
+                        to={item.path}
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                            isActive
+                              ? "bg-primary-dark text-primary-contrast"
+                              : "text-primary-contrast/80 hover:bg-primary-dark/50 hover:text-primary-contrast"
+                          }`
+                        }
+                      >
+                        <span>{item.label}</span>
+                      </NavLink>
+                    ))}
+                  </div>
                 </div>
-              )}
-              <div className="space-y-1">
-                {section.items.map((item) => (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                        isActive
-                          ? "bg-primary-dark text-primary-contrast"
-                          : "text-primary-contrast/80 hover:bg-primary-dark/50 hover:text-primary-contrast"
-                      }`
-                    }
-                  >
-                    <span className="text-lg">{item.icon}</span>
-                    <span>{item.label}</span>
-                  </NavLink>
-                ))}
-              </div>
-            </div>
-          ))}
+              );
+            })
+          )}
         </nav>
       </aside>
       <div className="flex-1 flex flex-col">

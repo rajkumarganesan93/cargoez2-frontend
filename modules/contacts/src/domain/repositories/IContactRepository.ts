@@ -7,8 +7,8 @@ export interface MutationResult<T> {
 
 export interface IContactRepository {
   getAll(): Promise<Contact[]>;
-  getById(id: string): Promise<Contact>;
+  getById(uid: string): Promise<Contact>;
   create(input: CreateContactInput): Promise<MutationResult<Contact>>;
-  update(id: string, input: UpdateContactInput): Promise<MutationResult<Contact>>;
-  delete(id: string): Promise<MutationResult<void>>;
+  update(uid: string, input: UpdateContactInput): Promise<MutationResult<Contact>>;
+  delete(uid: string): Promise<MutationResult<void>>;
 }

@@ -2,15 +2,13 @@ import type React from "react";
 import { usePermissions } from "./PermissionContext";
 
 interface PermissionGateProps {
-  /** Module code, e.g. "user-management" */
+  /** Module code, e.g. "freight" */
   module: string;
-  /** Screen code, e.g. "users" */
-  screen: string;
+  /** Screen code (optional, kept for backward compat but not used in new module.operation format) */
+  screen?: string;
   /** Required operation, e.g. "create". If array, user needs ANY of them. */
   operation: string | string[];
-  /** Content to render when permission is granted */
   children: React.ReactNode;
-  /** Optional fallback when permission is denied (defaults to null) */
   fallback?: React.ReactNode;
 }
 

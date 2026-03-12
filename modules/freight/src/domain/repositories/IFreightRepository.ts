@@ -7,8 +7,8 @@ export interface MutationResult<T> {
 
 export interface IFreightRepository {
   getAll(): Promise<Shipment[]>;
-  getById(id: string): Promise<Shipment>;
+  getById(uid: string): Promise<Shipment>;
   create(input: CreateShipmentInput): Promise<MutationResult<Shipment>>;
-  update(id: string, input: UpdateShipmentInput): Promise<MutationResult<Shipment>>;
-  delete(id: string): Promise<MutationResult<void>>;
+  update(uid: string, input: UpdateShipmentInput): Promise<MutationResult<Shipment>>;
+  delete(uid: string): Promise<MutationResult<void>>;
 }

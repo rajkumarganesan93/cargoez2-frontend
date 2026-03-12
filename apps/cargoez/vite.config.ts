@@ -15,6 +15,7 @@ export default defineConfig({
         contacts: `${REMOTE_BASE}:5174/assets/remoteEntry.js`,
         freight: `${REMOTE_BASE}:5175/assets/remoteEntry.js`,
         books: `${REMOTE_BASE}:5176/assets/remoteEntry.js`,
+        tenantAdmin: `${REMOTE_BASE}:5178/assets/remoteEntry.js`,
       },
       shared: {
         react: { singleton: true, requiredVersion: "^19.0.0" },
@@ -22,6 +23,7 @@ export default defineConfig({
         "react-router-dom": { singleton: true, requiredVersion: "^7.0.0" },
         "@rajkumarganesan93/uicontrols": { singleton: true, requiredVersion: "*" },
         "@rajkumarganesan93/uifunctions": { singleton: true, requiredVersion: "*" },
+        "@rajkumarganesan93/auth": { singleton: true, requiredVersion: "*" },
       },
     }),
   ],

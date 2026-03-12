@@ -13,19 +13,29 @@ export default function ContactForm() {
   const { saving, createContact, updateContact } = useContactMutation();
 
   const [formData, setFormData] = useState<CreateContactInput>({
-    name: "",
+    contactType: "company",
+    companyName: "",
+    firstName: "",
+    lastName: "",
     email: "",
     phone: "",
-    company: "",
+    city: "",
+    country: "",
+    notes: "",
   });
 
   useEffect(() => {
     if (contact && isEdit) {
       setFormData({
-        name: contact.name,
-        email: contact.email,
-        phone: contact.phone,
-        company: contact.company,
+        contactType: contact.contactType,
+        companyName: contact.companyName ?? "",
+        firstName: contact.firstName ?? "",
+        lastName: contact.lastName ?? "",
+        email: contact.email ?? "",
+        phone: contact.phone ?? "",
+        city: contact.city ?? "",
+        country: contact.country ?? "",
+        notes: contact.notes ?? "",
       });
     }
   }, [contact, isEdit]);
@@ -51,39 +61,83 @@ export default function ContactForm() {
         {isEdit ? "Edit Contact" : "New Contact"}
       </h1>
       <div className="space-y-2">
+        <div>
+          <label className="block text-sm font-medium text-text-primary mb-1">Contact Type</label>
+          <select
+            className="w-full border border-grey-300 rounded-md px-3 py-2 text-sm bg-bg-default text-text-primary"
+            value={formData.contactType}
+            onChange={(e) => setFormData((prev) => ({ ...prev, contactType: e.target.value }))}
+          >
+            <option value="company">Company</option>
+            <option value="individual">Individual</option>
+            <option value="agent">Agent</option>
+            <option value="carrier">Carrier</option>
+          </select>
+        </div>
         <TextField
-          id="contact-name"
-          label="Name"
-          placeholder="Enter full name"
-          value={formData.name}
-          onChange={handleChange("name")}
+          id="contact-company"
+          label="Company Name"
+          placeholder="Enter company name"
+          value={formData.companyName ?? ""}
+          onChange={handleChange("companyName")}
           fullWidth
-          validations={[rules.required("Name"), rules.minLength(2, "Name")]}
+        />
+        <TextField
+          id="contact-first-name"
+          label="First Name"
+          placeholder="Enter first name"
+          value={formData.firstName ?? ""}
+          onChange={handleChange("firstName")}
+          fullWidth
+        />
+        <TextField
+          id="contact-last-name"
+          label="Last Name"
+          placeholder="Enter last name"
+          value={formData.lastName ?? ""}
+          onChange={handleChange("lastName")}
+          fullWidth
         />
         <TextField
           id="contact-email"
           label="Email"
           type="email"
           placeholder="Enter email address"
-          value={formData.email}
+          value={formData.email ?? ""}
           onChange={handleChange("email")}
           fullWidth
-          validations={[rules.required("Email"), rules.email()]}
+          validations={[rules.email()]}
         />
         <TextField
           id="contact-phone"
           label="Phone"
           placeholder="Enter phone number"
-          value={formData.phone}
+          value={formData.phone ?? ""}
           onChange={handleChange("phone")}
           fullWidth
         />
         <TextField
-          id="contact-company"
-          label="Company"
-          placeholder="Enter company name"
-          value={formData.company}
-          onChange={handleChange("company")}
+          id="contact-city"
+          label="City"
+          placeholder="Enter city"
+          value={formData.city ?? ""}
+          onChange={handleChange("city")}
+          fullWidth
+        />
+        <TextField
+          id="contact-country"
+          label="Country"
+          placeholder="Enter country"
+          value={formData.country ?? ""}
+          onChange={handleChange("country")}
+          fullWidth
+        />
+        <TextField
+          id="contact-notes"
+          label="Notes"
+          placeholder="Optional notes"
+          value={formData.notes ?? ""}
+          onChange={handleChange("notes")}
           fullWidth
         />
         <div className="flex gap-3 pt-4">

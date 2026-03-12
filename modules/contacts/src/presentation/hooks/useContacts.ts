@@ -1,19 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@rajkumarganesan93/uicontrols";
-import { useRealtimeSync } from "@rajkumarganesan93/uifunctions";
-import type { ApiError, DomainEvent } from "@rajkumarganesan93/uifunctions";
+import type { ApiError } from "@rajkumarganesan93/uifunctions";
 import type { Contact, CreateContactInput, UpdateContactInput } from "../../domain";
 import { contactUseCases } from "../../di/container";
 
-const sampleContacts: Contact[] = [
-  { id: "1", name: "John Doe", email: "john@example.com", phone: "+1-555-0101", company: "Acme Corp", createdAt: "2026-01-15T10:00:00Z" },
-  { id: "2", name: "Jane Smith", email: "jane@example.com", phone: "+1-555-0102", company: "Global Freight", createdAt: "2026-02-01T14:30:00Z" },
-  { id: "3", name: "Bob Wilson", email: "bob@example.com", phone: "+1-555-0103", company: "Swift Logistics", createdAt: "2026-02-20T09:15:00Z" },
-];
-
 export function useContactList() {
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
 
   const fetchContacts = useCallback(async () => {
@@ -21,47 +14,33 @@ export function useContactList() {
     try {
       const data = await contactUseCases.listContacts();
       setContacts(data);
-    } catch {
-      setContacts(sampleContacts);
+    } catch (err) {
+      showToast("error", "Failed to load contacts");
+      setContacts([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     fetchContacts();
   }, [fetchContacts]);
 
-  const handleRealtimeEvent = useCallback(
-    (event: DomainEvent) => {
-      fetchContacts();
-      showToast("info", `A contact was ${event.action} by another user`);
-    },
-    [fetchContacts, showToast],
-  );
-
-  const { connected } = useRealtimeSync({
-    entity: "contacts",
-    onEvent: handleRealtimeEvent,
-  });
-
-  return { contacts, loading, refetch: fetchContacts, connected };
+  return { contacts, loading, refetch: fetchContacts };
 }
 
-export function useContactDetail(id: string | undefined) {
+export function useContactDetail(uid: string | undefined) {
   const [contact, setContact] = useState<Contact | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!id) return;
+    if (!uid) { setLoading(false); return; }
     contactUseCases
-      .getContact(id)
+      .getContact(uid)
       .then((data) => setContact(data))
-      .catch(() =>
-        setContact(sampleContacts.find((c) => c.id === id) ?? sampleContacts[0])
-      )
+      .catch(() => setContact(null))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [uid]);
 
   return { contact, loading };
 }
@@ -77,34 +56,34 @@ export function useContactMutation() {
       showToast("success", result.message);
       return true;
     } catch (err) {
-      showToast("error", (err as ApiError).message);
+      showToast("error", (err as ApiError).message || "Failed to create contact");
       return false;
     } finally {
       setSaving(false);
     }
   };
 
-  const updateContact = async (id: string, data: UpdateContactInput): Promise<boolean> => {
+  const updateContact = async (uid: string, data: UpdateContactInput): Promise<boolean> => {
     setSaving(true);
     try {
-      const result = await contactUseCases.updateContact(id, data);
+      const result = await contactUseCases.updateContact(uid, data);
       showToast("success", result.message);
       return true;
     } catch (err) {
-      showToast("error", (err as ApiError).message);
+      showToast("error", (err as ApiError).message || "Failed to update contact");
       return false;
     } finally {
       setSaving(false);
     }
   };
 
-  const deleteContact = async (id: string): Promise<boolean> => {
+  const deleteContact = async (uid: string): Promise<boolean> => {
     try {
-      const result = await contactUseCases.deleteContact(id);
+      const result = await contactUseCases.deleteContact(uid);
       showToast("success", result.message);
       return true;
     } catch (err) {
-      showToast("error", (err as ApiError).message);
+      showToast("error", (err as ApiError).message || "Failed to delete contact");
       return false;
     }
   };

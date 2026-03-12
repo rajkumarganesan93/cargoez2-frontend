@@ -1,7 +1,7 @@
 export const FREIGHT_ENDPOINTS = {
-  LIST: "/freight",
-  DETAIL: (id: string) => `/freight/${id}`,
-  CREATE: "/freight",
-  UPDATE: (id: string) => `/freight/${id}`,
-  DELETE: (id: string) => `/freight/${id}`,
+  LIST: "/freight-service/shipments",
+  DETAIL: (uid: string) => `/freight-service/shipments/${uid}`,
+  CREATE: "/freight-service/shipments",
+  UPDATE: (uid: string) => `/freight-service/shipments/${uid}`,
+  DELETE: (uid: string) => `/freight-service/shipments/${uid}`,
 } as const;

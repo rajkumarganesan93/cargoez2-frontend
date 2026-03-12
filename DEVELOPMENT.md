@@ -835,10 +835,9 @@ apps/admin/src/
 
 ```
 VITE_API_BASE_URL=http://localhost:4000
-VITE_USER_SERVICE_URL=http://localhost:3001
 VITE_KEYCLOAK_URL=http://localhost:8080
 VITE_KEYCLOAK_REALM=cargoez
-VITE_KEYCLOAK_CLIENT_ID=cargoez-web
+VITE_KEYCLOAK_CLIENT_ID=cargoez-admin
 ```
 
 ## Git Workflow

@@ -1,19 +1,37 @@
 export interface Shipment {
-  id: string;
+  uid: string;
+  shipmentNumber: string;
   origin: string;
   destination: string;
-  status: "Pending" | "In Transit" | "Delivered" | "Cancelled";
-  weight: string;
-  carrier: string;
-  estimatedDelivery: string;
+  mode: string;
+  status: string;
+  shipperName?: string;
+  consigneeName?: string;
+  weight?: number;
+  weightUnit?: string;
+  pieces?: number;
+  etd?: string;
+  eta?: string;
+  remarks?: string;
+  isActive: boolean;
+  createdAt: string;
+  modifiedAt: string;
 }
 
 export interface CreateShipmentInput {
+  shipmentNumber: string;
   origin: string;
   destination: string;
-  weight: string;
-  carrier: string;
-  estimatedDelivery: string;
+  mode?: string;
+  status?: string;
+  shipperName?: string;
+  consigneeName?: string;
+  weight?: number;
+  weightUnit?: string;
+  pieces?: number;
+  etd?: string;
+  eta?: string;
+  remarks?: string;
 }
 
-export interface UpdateShipmentInput extends Partial<CreateShipmentInput> {}
+export type UpdateShipmentInput = Partial<Omit<CreateShipmentInput, "shipmentNumber">>;

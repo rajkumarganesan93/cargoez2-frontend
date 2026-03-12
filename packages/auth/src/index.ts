@@ -6,5 +6,13 @@ export { getKeycloak, resetKeycloak } from "./keycloak";
 export type { KeycloakConfig } from "./keycloak";
 export { PermissionProvider } from "./PermissionProvider";
 export { usePermissions, PermissionContext } from "./PermissionContext";
-export type { PermissionContextValue, PermissionData, PermissionModule, PermissionScreen } from "./PermissionContext";
+export type {
+  PermissionContextValue,
+  PermissionData,
+  PermissionModule,
+  PermissionScreen,
+  UserContextData,
+  ResolvedPermission,
+} from "./PermissionContext";
 export { PermissionGate } from "./PermissionGate";
+export { useUserContext } from "./UserContext";

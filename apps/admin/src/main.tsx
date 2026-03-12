@@ -7,20 +7,19 @@ import {
   setAuthToken,
   setTokenRefresher,
   RealtimeProvider,
+  api,
 } from "@rajkumarganesan93/uifunctions";
 import { AuthProvider, useAuth, PermissionProvider } from "@rajkumarganesan93/auth";
-import type { PermissionData } from "@rajkumarganesan93/auth";
-import { api, type ApiResponse } from "@rajkumarganesan93/uifunctions";
+import type { UserContextData } from "@rajkumarganesan93/auth";
 import App from "./App";
 import "./index.css";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
-const USER_SERVICE_URL = import.meta.env.VITE_USER_SERVICE_URL || "http://localhost:3001";
 
 const keycloakConfig = {
   url: import.meta.env.VITE_KEYCLOAK_URL,
   realm: import.meta.env.VITE_KEYCLOAK_REALM,
-  clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID,
+  clientId: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || "cargoez-admin",
 };
 
 configureClient({ baseURL: API_BASE_URL, timeout: 10000 });
@@ -49,16 +48,16 @@ function AppWithRealtime() {
     });
   }, [getToken]);
 
-  const permissionFetcher = useCallback(async (): Promise<PermissionData> => {
-    const res = await api.get<ApiResponse<PermissionData>>("/auth-service/me/permissions");
-    return res.data.data;
+  const contextFetcher = useCallback(async (): Promise<UserContextData> => {
+    const res = await api.get<UserContextData>("/admin-service/me/context");
+    return res.data;
   }, []);
 
   return (
-    <PermissionProvider fetcher={permissionFetcher}>
+    <PermissionProvider fetcher={contextFetcher}>
       <RealtimeProvider
         getToken={getTokenSync}
-        defaultServiceUrl={USER_SERVICE_URL}
+        defaultServiceUrl={API_BASE_URL}
       >
         <App />
       </RealtimeProvider>
